@@ -1,0 +1,126 @@
+# ========================================
+# ARCHIVOS DE ENTORNO Y CONFIGURACIÓN
+# ========================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+.env.*
+
+# ========================================
+# NODE MODULES Y DEPENDENCIAS
+# ========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ========================================
+# LOGS Y ARCHIVOS TEMPORALES
+# ========================================
+logs/
+*.log
+log/
+temp/
+tmp/
+*.tmp
+*.temp
+
+# ========================================
+# ARCHIVOS DE BASE DE DATOS Y RESPALDOS
+# ========================================
+*.db
+*.sqlite
+*.sqlite3
+dump.rdb
+*.dump
+backup/
+backups/
+
+# ========================================
+# CERTIFICADOS SSL Y CLAVES PRIVADAS
+# ========================================
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+ssl/
+certs/
+
+# ========================================
+# ARCHIVOS DEL SISTEMA OPERATIVO
+# ========================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# ========================================
+# IDEs Y EDITORES
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ========================================
+# ARCHIVOS DE BUILD Y DISTRIBUCIÓN
+# ========================================
+build/
+dist/
+out/
+target/
+*.tgz
+*.tar.gz
+
+# ========================================
+# ARCHIVOS DE CACHE
+# ========================================
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist
+
+# ========================================
+# ARCHIVOS DE TESTING
+# ========================================
+coverage/
+nyc_output/
+.coverage
+.pytest_cache/
+
+# ========================================
+# ARCHIVOS ESPECÍFICOS DEL PROYECTO
+# ========================================
+# Archivos de configuración local
+config/local.json
+config/production.json
+
+# Archivos de uploads
+uploads/
+public/uploads/
+
+# Archivos de sesión
+sessions/
+
+# Archivos de desarrollo
+*.development
+*.dev
+.local
