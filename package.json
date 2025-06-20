@@ -6,6 +6,7 @@
     "production": "NODE_ENV=production node start.js",
     "test-endpoints": "node test-endpoints.js",
     "verify": "node verify-security.js",
+    "verify-deployment": "node verify-deployment.js",
     "health": "curl -f http://localhost:3000/api/health || exit 1"
   },
   "keywords": [],

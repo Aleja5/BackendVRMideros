@@ -6,7 +6,7 @@ const requiredEnvVars = {
     'PORT': '3000',
     'EMAIL_USER': '',
     'EMAIL_PASS': '',
-    'CORS_ORIGIN': 'https://vrmideros.netlify.app'
+    'CORS_ORIGIN': 'https://vrmideros.netlify.app,https://vr-mideros-backend.onrender.com'
 };
 
 const validateEnvironment = () => {

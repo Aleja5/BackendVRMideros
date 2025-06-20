@@ -59,13 +59,12 @@ const corsOptions = {
         const allowedOrigins = process.env.CORS_ORIGIN 
             ? process.env.CORS_ORIGIN.split(',').map(url => url.trim())
             : defaultOrigins;
-        
-        // Verificaciones de origen
-        const isAllowedOrigin = allowedOrigins.includes(origin);
-        const isVercelDomain = origin && origin.endsWith('.vercel.app');
+          // Verificaciones de origen
+        const isAllowedOrigin = allowedOrigins.includes(origin);        
+        const isNetlifyDomain = origin && origin.endsWith('.netlify.app');
         const isLocalhost = origin && (origin.includes('localhost') || origin.includes('127.0.0.1'));
         
-        if (isAllowedOrigin || isVercelDomain || isLocalhost) {
+        if (isAllowedOrigin || isVercelDomain || isNetlifyDomain || isLocalhost) {
             // Log solo en desarrollo
             if (process.env.NODE_ENV !== 'production') {
                 console.log('✅ CORS: Origen permitido:', origin);
@@ -74,7 +73,7 @@ const corsOptions = {
         } else {
             console.warn(`🚫 CORS: Origen no permitido: ${origin}`);
             callback(new Error('No permitido por CORS'));
-        }    },
+        }},
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
@@ -117,7 +116,11 @@ app.use((req, res, next) => {
         'https://vr-mideros-backend.onrender.com'
     ];
     
-    if (allowedOrigins.includes(origin) || !origin) {
+    const isNetlifyDomain = origin && origin.endsWith('.netlify.app');
+    const isVercelDomain = origin && origin.endsWith('.vercel.app');
+    const isLocalhost = origin && (origin.includes('localhost') || origin.includes('127.0.0.1'));
+    
+    if (allowedOrigins.includes(origin) || isNetlifyDomain || isVercelDomain || isLocalhost || !origin) {
         res.setHeader('Access-Control-Allow-Origin', origin || '*');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');

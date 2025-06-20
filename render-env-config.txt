@@ -22,7 +22,8 @@ JWT_SECRET=tu_jwt_secret_super_seguro_de_al_menos_64_caracteres_muy_largo_y_alea
 NODE_ENV=production
 
 # CORS Origins - URLs de tu frontend (separadas por coma)
-CORS_ORIGIN=https://vrmideros.netlify.app,https://vr-mideros.netlify.app
+# Actualiza con las URLs reales de tu frontend
+CORS_ORIGIN=https://vrmideros.netlify.app,https://vr-mideros.netlify.app,https://vr-mideros-backend.onrender.com
 
 # ========================================
 # VARIABLES OPCIONALES (para funcionalidades de email)
