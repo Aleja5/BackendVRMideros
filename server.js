@@ -42,38 +42,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Configuración de CORS mejorada para seguridad
+// Configuración de CORS SIMPLIFICADA para solucionar problemas
 const corsOptions = {
-    origin: function (origin, callback) {
-        // Permitir requests sin origin (mobile apps, postman, etc.)
-        if (!origin) return callback(null, true);
-          // Orígenes específicos permitidos
-        const defaultOrigins = [
-            'http://localhost:5173', 
-            'http://localhost:3000',
-            'https://vrmideros.netlify.app',
-            'https://vr-mideros.netlify.app',
-            'https://vrmiderosbackend.onrender.com',
-            'https://vr-mideros-backend.onrender.com'
-        ];
-        
-        const allowedOrigins = process.env.CORS_ORIGIN 
-            ? process.env.CORS_ORIGIN.split(',').map(url => url.trim())
-            : defaultOrigins;
-          // Verificaciones de origen
-        const isAllowedOrigin = allowedOrigins.includes(origin);        
-        const isNetlifyDomain = origin && origin.endsWith('.netlify.app');
-        const isLocalhost = origin && (origin.includes('localhost') || origin.includes('127.0.0.1'));
-        
-        if (isAllowedOrigin || isVercelDomain || isNetlifyDomain || isLocalhost) {
-            // Log solo en desarrollo
-            if (process.env.NODE_ENV !== 'production') {
-                console.log('✅ CORS: Origen permitido:', origin);
-            }
-            callback(null, true);
-        } else {
-            console.warn(`🚫 CORS: Origen no permitido: ${origin}`);
-            callback(new Error('No permitido por CORS'));
-        }},
+    origin: true, // Permitir todos los orígenes temporalmente para debug
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
@@ -120,11 +91,18 @@ app.use((req, res, next) => {
     const isVercelDomain = origin && origin.endsWith('.vercel.app');
     const isLocalhost = origin && (origin.includes('localhost') || origin.includes('127.0.0.1'));
     
+    // Log para debug
+    console.log(`📥 Request from origin: ${origin || 'no-origin'}`);
+    console.log(`🔍 Method: ${req.method}`);
+    
     if (allowedOrigins.includes(origin) || isNetlifyDomain || isVercelDomain || isLocalhost || !origin) {
+        console.log(`✅ CORS Manual: Permitiendo origen ${origin || 'no-origin'}`);
         res.setHeader('Access-Control-Allow-Origin', origin || '*');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin');
+    } else {
+        console.log(`❌ CORS Manual: Bloqueando origen ${origin}`);
     }
     
     if (req.method === 'OPTIONS') {
