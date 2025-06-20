@@ -17,6 +17,7 @@ const usuarioRoutes = require('./src/routes/usuarioRoutes');
 const areaRoutes = require('./src/routes/areaRoutes');
 const jornadaRoutes = require('./src/routes/jornadaRoutes');
 const healthRoutes = require('./src/routes/healthRoutes');
+const { trackRequests, router: rateLimitMonitorRouter } = require('./monitor-rate-limits');
 
 // Validar variables de entorno críticas
 const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET'];
@@ -36,6 +37,24 @@ if (missingOptional.length > 0) {
     console.warn('⚠️ Variables opcionales faltantes:', missingOptional.join(', '));
     console.warn('📧 Funciones de email pueden no funcionar');
 }
+
+// Middleware de logging para requests
+const requestLogger = (req, res, next) => {
+    const start = Date.now();
+    const ip = req.ip || req.connection.remoteAddress;
+    
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        const userAgent = req.get('User-Agent') || 'Unknown';
+        
+        // Log solo en desarrollo o para debugging
+        if (process.env.NODE_ENV !== 'production' || process.env.DEBUG_REQUESTS === 'true') {
+            console.log(`${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms - IP: ${ip.substring(0, 10)}...`);
+        }
+    });
+    
+    next();
+};
 
 // Inicializar Express
 const app = express();
@@ -66,9 +85,11 @@ app.use(helmet({
             mediaSrc: ["'self'"],
             frameSrc: ["'none'"],
         },
-    },
-    crossOriginEmbedderPolicy: false // Deshabilitado para compatibilidad
+    },    crossOriginEmbedderPolicy: false // Deshabilitado para compatibilidad
 }));
+
+// Aplicar logging de requests
+app.use(requestLogger);
 
 app.use(cors(corsOptions));
 
@@ -115,34 +136,104 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' })); // Limitar tamaño de payload
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Configuración de Rate Limiting para seguridad
+// Configuración de Rate Limiting para múltiples usuarios
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 5, // máximo 5 intentos de login por IP cada 15 minutos
+    max: parseInt(process.env.RATE_LIMIT_AUTH_MAX) || (process.env.NODE_ENV === 'production' ? 50 : 100), // Aumentado para múltiples usuarios
     message: {
         error: 'Demasiados intentos de inicio de sesión. Intenta nuevamente en 15 minutos.',
         retryAfter: '15 minutos'
     },
     standardHeaders: true,
     legacyHeaders: false,
+    // Excluir requests exitosos del conteo
+    skipSuccessfulRequests: true,
+    // Permitir más requests para usuarios ya autenticados
+    skip: (req) => {
+        // No limitar si ya tienen token válido
+        const token = req.headers.authorization;
+        if (token && token.startsWith('Bearer ')) {
+            return true;
+        }
+        // Tampoco limitar el refresh token
+        if (req.path === '/refresh') {
+            return true;
+        }
+        return false;
+    },
+    // Usar una clave más específica que incluya el user agent para evitar bloqueos masivos
+    keyGenerator: (req) => {
+        return req.ip + ':' + (req.get('User-Agent') || 'unknown').slice(0, 50);
+    }
 });
 
 const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 500, // máximo 500 requests por IP cada 15 minutos (aumentado para desarrollo)
+    windowMs: 10 * 60 * 1000, // 10 minutos (reducido para más flexibilidad)
+    max: parseInt(process.env.RATE_LIMIT_GENERAL_MAX) || (process.env.NODE_ENV === 'production' ? 5000 : 10000), // Aumentado significativamente
     message: {
         error: 'Demasiadas solicitudes. Intenta nuevamente más tarde.',
-        retryAfter: '15 minutos'
+        retryAfter: '10 minutos'
     },
     standardHeaders: true,
     legacyHeaders: false,
+    // Excluir requests exitosos del conteo
+    skipSuccessfulRequests: true,
+    // No limitar usuarios autenticados
+    skip: (req) => {
+        // No limitar requests con token válido
+        const token = req.headers.authorization;
+        if (token && token.startsWith('Bearer ')) {
+            return true;
+        }
+        // No limitar ciertos endpoints críticos
+        const exemptPaths = ['/health', '/ping', '/ready', '/operarios/validar-cedula'];
+        return exemptPaths.some(path => req.path.includes(path));
+    },
+    // Usar IP + User Agent para mejor distribución
+    keyGenerator: (req) => {
+        return req.ip + ':' + (req.get('User-Agent') || 'unknown').slice(0, 30);
+    }
 });
 
-// Aplicar rate limiting general a todas las rutas API
-app.use('/api/', generalLimiter);
+// Aplicar rate limiting general a todas las rutas API (excepto health check)
+app.use('/api/', (req, res, next) => {
+    // Excluir health checks del rate limiting
+    if (req.path === '/health' || req.path === '/ping' || req.path === '/ready') {
+        return next();
+    }
+    return generalLimiter(req, res, next);
+});
+
+// Rate limiter muy permisivo para rutas de producción críticas
+const productionLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5 minutos (ventana más corta)
+    max: parseInt(process.env.RATE_LIMIT_PRODUCTION_MAX) || (process.env.NODE_ENV === 'production' ? 10000 : 20000), // Muy permisivo
+    message: {
+        error: 'Límite de solicitudes excedido para operaciones de producción.',
+        retryAfter: '5 minutos'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: true,
+    // Prácticamente no limitar a usuarios autenticados
+    skip: (req) => {
+        const token = req.headers.authorization;
+        return token && token.startsWith('Bearer ');
+    },
+    keyGenerator: (req) => {
+        // Usar IP + token hash para distribución más granular
+        const token = req.headers.authorization;
+        const tokenHash = token ? token.slice(-10) : 'anon';
+        return req.ip + ':' + tokenHash;
+    }
+});
 
 // Aplicar rate limiting específico para autenticación
 app.use('/api/auth/', authLimiter);
+
+// Aplicar rate limiting más permisivo para rutas de producción
+app.use('/api/produccion/', productionLimiter);
+app.use('/api/jornadas/', productionLimiter);
 
 // Headers de seguridad
 app.use((req, res, next) => {
@@ -154,6 +245,9 @@ app.use((req, res, next) => {
     }
     next();
 });
+
+// Middleware de tracking de rate limiting (debe ir antes de las rutas)
+app.use(trackRequests);
 
 // Rutas
 app.use('/api/auth', authRoutes);
@@ -169,6 +263,7 @@ app.use('/api/areas', areaRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/jornadas', jornadaRoutes);
 app.use('/api', healthRoutes);
+app.use('/api', rateLimitMonitorRouter); // Monitor de rate limiting
 
 // Middleware de ruta no encontrada (DEBE IR DESPUÉS de las rutas)
 app.use((req, res, next) => {

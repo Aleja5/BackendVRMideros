@@ -11,34 +11,36 @@ const Operario = require('../models/Operario');
 
 const router = express.Router();
 
-// Simple rate limiting para validación de cédula
+// Rate limiting optimizado para múltiples usuarios simultáneos
 const rateLimit = {};
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minuto
-const MAX_REQUESTS = 50; // máximo 50 solicitudes por minuto por IP (aumentado para desarrollo)
+const MAX_REQUESTS = 200; // Aumentado significativamente para múltiples usuarios
 
 const rateLimitMiddleware = (req, res, next) => {
     const clientIP = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent') || 'unknown';
+    const clientKey = `${clientIP}:${userAgent.slice(0, 20)}`; // Más granular
     const now = Date.now();
     
-    if (!rateLimit[clientIP]) {
-        rateLimit[clientIP] = { count: 1, resetTime: now + RATE_LIMIT_WINDOW };
+    if (!rateLimit[clientKey]) {
+        rateLimit[clientKey] = { count: 1, resetTime: now + RATE_LIMIT_WINDOW };
         return next();
     }
     
-    if (now > rateLimit[clientIP].resetTime) {
-        rateLimit[clientIP] = { count: 1, resetTime: now + RATE_LIMIT_WINDOW };
+    if (now > rateLimit[clientKey].resetTime) {
+        rateLimit[clientKey] = { count: 1, resetTime: now + RATE_LIMIT_WINDOW };
         return next();
     }
     
-    if (rateLimit[clientIP].count >= MAX_REQUESTS) {
-        const retryAfter = Math.ceil((rateLimit[clientIP].resetTime - now) / 1000);
+    if (rateLimit[clientKey].count >= MAX_REQUESTS) {
+        const retryAfter = Math.ceil((rateLimit[clientKey].resetTime - now) / 1000);
         return res.status(429).json({
             error: 'Demasiadas solicitudes. Intenta nuevamente más tarde.',
             retryAfter: `${retryAfter} segundos`
         });
     }
     
-    rateLimit[clientIP].count++;
+    rateLimit[clientKey].count++;
     next();
 };
 

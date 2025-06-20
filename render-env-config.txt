@@ -34,6 +34,18 @@ CORS_ORIGIN=https://vrmideros.netlify.app,https://vr-mideros.netlify.app,https:/
 # EMAIL_PASS=tu_app_password
 
 # ========================================
+# CONFIGURACIÓN DE RATE LIMITING OPTIMIZADA
+# ========================================
+
+# Límites de solicitudes por IP (OPTIMIZADOS para múltiples usuarios simultáneos)
+RATE_LIMIT_AUTH_MAX=100             # Máximo intentos de login por IP (15 min) - AUMENTADO
+RATE_LIMIT_GENERAL_MAX=10000        # Máximo requests generales por IP (10 min) - AUMENTADO  
+RATE_LIMIT_PRODUCTION_MAX=20000     # Máximo requests de producción por IP (5 min) - MUY AUMENTADO
+
+# Configuración adicional
+DEBUG_REQUESTS=false                # true para ver logs de requests en producción
+
+# ========================================
 # NOTAS IMPORTANTES
 # ========================================
 # 1. NO copies el archivo .env a Git

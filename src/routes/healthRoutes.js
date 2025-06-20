@@ -168,4 +168,32 @@ router.get('/ping', (req, res) => {
     });
 });
 
+/**
+ * Rate Limit Status Endpoint
+ * Muestra información sobre los límites de tasa actuales
+ */
+router.get('/rate-limits', (req, res) => {
+    const rateLimitInfo = {
+        auth: {
+            windowMs: 15 * 60 * 1000,
+            max: parseInt(process.env.RATE_LIMIT_AUTH_MAX) || (process.env.NODE_ENV === 'production' ? 20 : 50),
+            description: 'Límite para intentos de autenticación'
+        },
+        general: {
+            windowMs: 15 * 60 * 1000,
+            max: parseInt(process.env.RATE_LIMIT_GENERAL_MAX) || (process.env.NODE_ENV === 'production' ? 2000 : 5000),
+            description: 'Límite general para todas las rutas API'
+        },
+        production: {
+            windowMs: 15 * 60 * 1000,
+            max: parseInt(process.env.RATE_LIMIT_PRODUCTION_MAX) || (process.env.NODE_ENV === 'production' ? 5000 : 10000),
+            description: 'Límite para rutas de producción críticas'
+        },
+        concurrent_users_supported: 'Aproximadamente 50-100 usuarios simultáneos',
+        last_updated: new Date().toISOString()
+    };
+
+    res.status(200).json(rateLimitInfo);
+});
+
 module.exports = router;
