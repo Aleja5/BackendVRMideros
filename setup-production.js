@@ -27,7 +27,7 @@ const cambios = [
     {
         descripcion: 'CORS_ORIGIN → dominio de producción',
         buscar: 'CORS_ORIGIN=http://localhost:5173',
-        reemplazar: 'CORS_ORIGIN=https://TU-DOMINIO-AQUI.com'
+        reemplazar: 'CORS_ORIGIN=https://vrmideros.netlify.app'
     }
 ];
 

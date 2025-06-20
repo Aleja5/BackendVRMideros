@@ -18,9 +18,6 @@ const areaRoutes = require('./src/routes/areaRoutes');
 const jornadaRoutes = require('./src/routes/jornadaRoutes');
 const healthRoutes = require('./src/routes/healthRoutes');
 
-// Importar utilidades de API
-const { ApiResponse, errorHandler, notFoundHandler, requestLogger } = require('./src/utils/apiResponse');
-
 // Validar variables de entorno críticas
 const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET'];
 // EMAIL vars son opcionales para despliegue inicial
@@ -49,12 +46,14 @@ const corsOptions = {
     origin: function (origin, callback) {
         // Permitir requests sin origin (mobile apps, postman, etc.)
         if (!origin) return callback(null, true);
-        
-        // Orígenes específicos permitidos
+          // Orígenes específicos permitidos
         const defaultOrigins = [
             'http://localhost:5173', 
             'http://localhost:3000',
-            'https://vr-mideros.vercel.app'
+            'https://vrmideros.netlify.app',
+            'https://vr-mideros.netlify.app',
+            'https://vrmiderosbackend.onrender.com',
+            'https://vr-mideros-backend.onrender.com'
         ];
         
         const allowedOrigins = process.env.CORS_ORIGIN 
@@ -75,9 +74,10 @@ const corsOptions = {
         } else {
             console.warn(`🚫 CORS: Origen no permitido: ${origin}`);
             callback(new Error('No permitido por CORS'));
-        }
-    },
+        }    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     optionsSuccessStatus: 200
 };
 
@@ -101,6 +101,36 @@ app.use(helmet({
 }));
 
 app.use(cors(corsOptions));
+
+// Middleware adicional para preflight requests
+app.options('*', cors(corsOptions));
+
+// Middleware manual para CORS en caso de fallos
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:3000', 
+        'https://vrmideros.netlify.app',
+        'https://vr-mideros.netlify.app',
+        'https://vrmiderosbackend.onrender.com',
+        'https://vr-mideros-backend.onrender.com'
+    ];
+    
+    if (allowedOrigins.includes(origin) || !origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin || '*');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin');
+    }
+    
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+    } else {
+        next();
+    }
+});
+
 app.use(express.json({ limit: '10mb' })); // Limitar tamaño de payload
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -136,22 +166,15 @@ app.use('/api/auth/', authLimiter);
 // Headers de seguridad
 app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
     if (process.env.NODE_ENV === 'production') {
         res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
     next();
 });
 
-// Middleware de logging para producción
-if (process.env.NODE_ENV === 'production') {
-    app.use(requestLogger);
-}
-
-// Rutas de health check (deben ir primero)
-app.use('/api', healthRoutes);
-
-// Rutas principales
+// Rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/operarios', operatorRoutes);
 app.use('/api/produccion', productionRoutes);
@@ -164,12 +187,31 @@ app.use('/api/procesos', procesosRoutes);
 app.use('/api/areas', areaRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/jornadas', jornadaRoutes);
+app.use('/api', healthRoutes);
 
 // Middleware de ruta no encontrada (DEBE IR DESPUÉS de las rutas)
-app.use(notFoundHandler);
+app.use((req, res, next) => {
+  console.error(`❌ Ruta no encontrada: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ error: "Ruta no encontrada", path: req.originalUrl });
+});
 
 // Middleware de manejo de errores global
-app.use(errorHandler);
+app.use((err, req, res, next) => {
+    console.error('🐛 Error global capturado:', err.message);
+    
+    // No exponer stack trace en producción
+    const errorResponse = {
+        error: process.env.NODE_ENV === 'production' 
+            ? 'Error interno del servidor' 
+            : err.message
+    };
+    
+    if (process.env.NODE_ENV !== 'production') {
+        errorResponse.stack = err.stack;
+    }
+    
+    res.status(err.status || 500).json(errorResponse);
+});
 
 //conectar a MongoDB
 connectDB();

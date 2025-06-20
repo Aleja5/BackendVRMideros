@@ -1,6 +1,10 @@
 // Archivo de inicio para producción
 require('dotenv').config();
 
+// Validar variables de entorno
+const { validateEnvironment } = require('./src/config/environment');
+validateEnvironment();
+
 // Importar la aplicación
 const app = require('./server');
 
