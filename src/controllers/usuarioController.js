@@ -80,10 +80,8 @@ const Registrar = async (req, res) => {
         // Validar longitud de contraseña
         if (password.length < 6) {
             return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres.' });
-        }
-
-        // Validar roles permitidos
-        const rolesPermitidos = ['admin', 'operario', 'supervisor', 'usuario'];
+        }        // Validar roles permitidos
+        const rolesPermitidos = ['admin', 'production'];
         if (!rolesPermitidos.includes(role)) {
             return res.status(400).json({ message: 'Rol no válido. Los roles permitidos son: ' + rolesPermitidos.join(', ') });
         }
@@ -141,11 +139,9 @@ const actualizarUsuario = async (req, res) => {
         // Validar que el nombre tenga una longitud mínima si se proporciona
         if (nombre && nombre.trim().length < 2) {
             return res.status(400).json({ message: 'El nombre debe tener al menos 2 caracteres.' });
-        }
-
-        // Validar roles permitidos si se proporciona
+        }        // Validar roles permitidos si se proporciona
         if (role) {
-            const rolesPermitidos = ['admin', 'operario', 'supervisor', 'usuario'];
+            const rolesPermitidos = ['admin', 'production'];
             if (!rolesPermitidos.includes(role)) {
                 return res.status(400).json({ message: 'Rol no válido. Los roles permitidos son: ' + rolesPermitidos.join(', ') });
             }

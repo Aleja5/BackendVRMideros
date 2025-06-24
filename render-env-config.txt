@@ -25,6 +25,10 @@ NODE_ENV=production
 # Actualiza con las URLs reales de tu frontend
 CORS_ORIGIN=https://vrmideros.netlify.app,https://vr-mideros.netlify.app,https://vr-mideros-backend.onrender.com
 
+# URL del frontend para emails de recuperación de contraseña
+# IMPORTANTE: Debe ser la URL real de producción de tu frontend
+FRONTEND_URL=https://vrmideros.netlify.app
+
 # ========================================
 # VARIABLES OPCIONALES (para funcionalidades de email)
 # ========================================
