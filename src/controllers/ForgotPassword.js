@@ -24,7 +24,7 @@ const ForgotPassword = () => {
       const response = await axiosInstance.post('/auth/forgot-password', { email });
       setMessage(response.data.message);
       setLoading(false);
-      setTimeout(() => navigate('/login'), 3000); // Redirige después de 3 segundos
+      setTimeout(() => navigate('/login'), 2000); // Redirige después de 2 segundos
     } catch (err) {
       setError('No se pudo enviar el enlace de restablecimiento');
       setLoading(false);

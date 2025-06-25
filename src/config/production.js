@@ -18,11 +18,12 @@ const productionConfig = {
     // Configuración de CORS para producción
     cors: {
         origins: [
-            // Vercel frontend URLs
-            process.env.VERCEL_FRONTEND_URL || 'https://your-app.vercel.app',
-            'https://*.vercel.app', // Wildcard para preview deployments
+            // Netlify frontend URL
+            process.env.FRONTEND_URL || 'https://vrmideros.netlify.app',
+            'https://vrmideros.netlify.app',
+            'https://*.netlify.app', // Para deploys de preview
             // Render backend URL (para health checks)
-            process.env.RENDER_BACKEND_URL || 'https://your-app.onrender.com'
+            process.env.RENDER_BACKEND_URL || 'https://vr-mideros-backend.onrender.com'
         ],
         credentials: true,
         optionsSuccessStatus: 200,

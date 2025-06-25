@@ -105,17 +105,36 @@ exports.forgotPassword = async (req, res) => {
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hora
     await user.save({ validateBeforeSave: false });
 
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    // Construir el enlace de reset - asegurar que FRONTEND_URL esté configurada
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${frontendUrl}/reset-password/${resetToken}`;
+
+    console.log(`🔗 Enlace de reset generado: ${resetLink}`);
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: email,
-            subject: 'Recuperación de contraseña',
+            subject: 'Recuperación de contraseña - VR Mideros',
             html: `
-                <p>Hola,</p>
-                <p>Haz clic en el siguiente enlace para restablecer tu contraseña:</p>
-                <p><a href="${resetLink}">${resetLink}</a></p>
-                <p>Si no solicitaste este correo, puedes ignorarlo.</p>
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #333;">Recuperación de contraseña</h2>
+                    <p>Hola,</p>
+                    <p>Hemos recibido una solicitud para restablecer tu contraseña en VR Mideros.</p>
+                    <p>Haz clic en el siguiente botón para restablecer tu contraseña:</p>
+                    <p style="text-align: center; margin: 30px 0;">
+                        <a href="${resetLink}" 
+                           style="background-color: #3B82F6; color: white; padding: 12px 24px; 
+                                  text-decoration: none; border-radius: 6px; display: inline-block;">
+                            Restablecer Contraseña
+                        </a>
+                    </p>
+                    <p>O copia y pega este enlace en tu navegador:</p>
+                    <p style="color: #666; word-break: break-all;">${resetLink}</p>
+                    <p style="color: #999; font-size: 14px;">
+                        Este enlace expirará en 1 hora por seguridad.<br>
+                        Si no solicitaste este correo, puedes ignorarlo.
+                    </p>
+                </div>
             `,
         };
 

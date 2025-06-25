@@ -35,13 +35,8 @@ const forgotPasswordValidation = [
 
 // Validaciones para reset password
 const resetPasswordValidation = [
-    body('password').isLength({ min: 6 }).withMessage('Password debe tener al menos 6 caracteres'),
-    body('confirmPassword').custom((value, { req }) => {
-        if (value !== req.body.password) {
-            throw new Error('Las contraseñas no coinciden');
-        }
-        return true;
-    })
+    body('newPassword').isLength({ min: 6 }).withMessage('La nueva contraseña debe tener al menos 6 caracteres'),
+    body('token').notEmpty().withMessage('Token es obligatorio')
 ];
 
 // Ruta de login
