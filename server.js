@@ -61,9 +61,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Configuración de CORS mejorada para seguridad
-// Configuración de CORS SIMPLIFICADA para solucionar problemas
 const corsOptions = {
-    origin: true, // Permitir todos los orígenes temporalmente para debug
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['https://vrmideros.netlify.app'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
