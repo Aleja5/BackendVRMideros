@@ -11,6 +11,7 @@ const productionController = require('../controllers/productionController'); // 
 // Rutas para obtener listas para los filtros del FilterPanel
 router.get('/oti', productionController.getAllOtiParaFiltros);
 router.get('/operarios', productionController.getAllOperariosParaFiltros);
+router.get('/operarios-por-oti/:otiId', productionController.getOperariosPorOti); // NUEVO: Operarios filtrados por OTI
 
 // Ruta para buscar producción con filtros dinámicos
 router.get('/buscar-produccion', productionController.buscarProduccion); // <--- AÑADIDO: Ruta para buscar producción

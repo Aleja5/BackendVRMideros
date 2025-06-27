@@ -817,6 +817,59 @@ exports.getAllOperariosParaFiltros = async (req, res) => {
     }
 };
 
+// NUEVO: Obtener operarios que han trabajado en una OTI específica
+exports.getOperariosPorOti = async (req, res) => {
+    try {
+        const { otiId } = req.params;
+        
+        if (!otiId) {
+            return res.status(400).json({ msg: "El ID de la OTI es requerido" });
+        }
+
+        // Validar que el otiId sea un ObjectId válido
+        if (!mongoose.Types.ObjectId.isValid(otiId)) {
+            return res.status(400).json({ msg: "ID de OTI no válido" });
+        }
+
+        logger.info(`Buscando operarios para OTI: ${otiId}`);
+
+        // Primero buscar directamente los registros de producción para debug
+        const registrosProduccion = await Produccion.find({ oti: otiId })
+            .populate('operario', '_id name')
+            .select('operario');
+
+        logger.info(`Registros de producción encontrados: ${registrosProduccion.length}`);
+
+        if (registrosProduccion.length === 0) {
+            return res.status(200).json([]);
+        }
+
+        // Extraer operarios únicos
+        const operariosUnicos = [];
+        const operariosVistos = new Set();
+
+        registrosProduccion.forEach(registro => {
+            if (registro.operario && !operariosVistos.has(registro.operario._id.toString())) {
+                operariosVistos.add(registro.operario._id.toString());
+                operariosUnicos.push({
+                    _id: registro.operario._id,
+                    name: registro.operario.name
+                });
+            }
+        });
+
+        // Ordenar por nombre
+        operariosUnicos.sort((a, b) => a.name.localeCompare(b.name));
+
+        logger.info(`Operarios únicos encontrados: ${operariosUnicos.length}`);
+        res.status(200).json(operariosUnicos);
+
+    } catch (error) {
+        logger.error("Error al obtener operarios por OTI:", error);
+        res.status(500).json({ msg: "Error interno del servidor al obtener operarios por OTI" });
+    }
+};
+
 // NUEVO: Función de debug para verificar datos existentes
 exports.debugDatos = async (req, res) => {
     try {
