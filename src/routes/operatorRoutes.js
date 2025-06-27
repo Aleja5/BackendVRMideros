@@ -5,7 +5,8 @@ const {
     obtenerOperarios,
     obtenerOperario,
     actualizarOperario,
-    eliminarOperario
+    eliminarOperario,
+    verificarIntegridadOperario
 } = require('../controllers/operatorController');
 const Operario = require('../models/Operario');
 
@@ -66,6 +67,7 @@ router.post('/', crearOperario);
 router.get('/', obtenerOperarios);
 router.get('/:id', obtenerOperario);
 router.put('/:id', actualizarOperario);
+router.get('/:id/verificar-integridad', verificarIntegridadOperario);
 router.delete('/:id', eliminarOperario);
 
 module.exports = router;

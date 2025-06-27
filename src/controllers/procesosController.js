@@ -1,4 +1,5 @@
 const Proceso = require('../models/Proceso');
+const { verificarIntegridadReferencial, obtenerRegistrosAfectados } = require('../utils/integridadReferencial');
 
 // Obtener todos los procesos
 const obtenerProcesos = async (req, res) => {
@@ -105,13 +106,83 @@ const actualizarProceso = async (req, res) => {
 // Eliminar un proceso
 const eliminarProceso = async (req, res) => {
     try {
-        const proceso = await Proceso.findByIdAndDelete(req.params.id);
+        const { id } = req.params;
+        
+        // Verificar si el proceso existe
+        const Proceso = require('../models/Proceso');
+        const proceso = await Proceso.findById(id);
         if (!proceso) {
             return res.status(404).json({ message: 'Proceso no encontrado' });
         }
-        res.json({ message: 'Proceso eliminado' });
+
+        // Verificar si el proceso tiene registros de producción asociados
+        const Produccion = require('../models/Produccion');
+        const registrosProduccion = await Produccion.countDocuments({ procesos: { $in: [id] } });
+        
+        if (registrosProduccion > 0) {
+            return res.status(409).json({ 
+                message: 'No se puede eliminar el proceso porque tiene registros de producción asociados',
+                conflicto: 'integridad_referencial',
+                detalles: {
+                    entidad: 'proceso',
+                    nombre: proceso.nombre,
+                    registrosAfectados: registrosProduccion,
+                    sugerencia: 'Primero elimine o reasigne los registros de producción asociados'
+                }
+            });
+        }
+
+        // Si no hay registros asociados, proceder con la eliminación
+        const procesoEliminado = await Proceso.findByIdAndDelete(id);
+        res.json({ 
+            message: 'Proceso eliminado exitosamente',
+            proceso: procesoEliminado
+        });
     } catch (error) {
+        console.error('Error al eliminar proceso:', error);
         res.status(500).json({ message: error.message });
+    }
+};
+
+// Verificar integridad referencial antes de eliminar
+const verificarIntegridadProceso = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Verificar si el proceso existe
+        const proceso = await Proceso.findById(id);
+        if (!proceso) {
+            return res.status(404).json({ message: 'Proceso no encontrado' });
+        }
+
+        // Verificar integridad referencial
+        const verificacion = await verificarIntegridadReferencial(id, 'proceso', proceso.nombre);
+        
+        if (!verificacion.puedeEliminar) {
+            // Obtener algunos registros afectados para mostrar detalles
+            const registrosAfectados = await obtenerRegistrosAfectados(id, 'proceso', 5);
+            
+            return res.status(200).json({
+                puedeEliminar: false,
+                mensaje: verificacion.mensaje,
+                detalles: verificacion.detalles,
+                registrosAfectados,
+                totalRegistros: verificacion.registrosAfectados
+            });
+        }
+
+        res.status(200).json({
+            puedeEliminar: true,
+            mensaje: verificacion.mensaje,
+            proceso: {
+                id: proceso._id,
+                nombre: proceso.nombre
+            }
+        });
+
+    } catch (error) {
+        console.error('Error verificando integridad del proceso:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -122,5 +193,6 @@ module.exports = {
     crearProceso,
     actualizarProceso,
     eliminarProceso,
+    verificarIntegridadProceso
 };
 

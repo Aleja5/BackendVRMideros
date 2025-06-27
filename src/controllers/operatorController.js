@@ -1,4 +1,5 @@
 const Operario = require("../models/Operario");
+const { verificarIntegridadReferencial, obtenerRegistrosAfectados } = require('../utils/integridadReferencial');
 
 // Validar si un operario existe en la base de datos con su cédula
 const validateCedula = async (req, res) => {
@@ -98,14 +99,83 @@ const actualizarOperario = async (req, res) => {
 // Eliminar un operario por ID
 const eliminarOperario = async (req, res) => {
   try {
-    const operarioEliminado = await Operario.findByIdAndDelete(req.params.id);
-    if (!operarioEliminado) {
+    const { id } = req.params;
+    
+    // Verificar si el operario existe
+    const operario = await Operario.findById(id);
+    if (!operario) {
       return res.status(404).json({ message: 'Operario no encontrado' });
     }
-    res.json({ message: 'Operario eliminado' });
+
+    // Verificar si el operario tiene registros de producción asociados
+    const Produccion = require('../models/Produccion');
+    const registrosProduccion = await Produccion.countDocuments({ operario: id });
+    
+    if (registrosProduccion > 0) {
+      return res.status(409).json({ 
+        message: 'No se puede eliminar el operario porque tiene registros de producción asociados',
+        conflicto: 'integridad_referencial',
+        detalles: {
+          entidad: 'operario',
+          registrosAfectados: registrosProduccion,
+          sugerencia: 'Primero elimine o reasigne los registros de producción asociados'
+        }
+      });
+    }
+
+    // Si no hay registros asociados, proceder con la eliminación
+    const operarioEliminado = await Operario.findByIdAndDelete(id);
+    res.json({ 
+      message: 'Operario eliminado exitosamente',
+      operario: operarioEliminado
+    });
   } catch (error) {
+    console.error('Error al eliminar operario:', error);
     res.status(500).json({ message: error.message });
   }
+};
+
+// Verificar integridad referencial antes de eliminar
+const verificarIntegridadOperario = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Verificar si el operario existe
+        const operario = await Operario.findById(id);
+        if (!operario) {
+            return res.status(404).json({ message: 'Operario no encontrado' });
+        }
+
+        // Verificar integridad referencial
+        const verificacion = await verificarIntegridadReferencial(id, 'operario', operario.name);
+        
+        if (!verificacion.puedeEliminar) {
+            // Obtener algunos registros afectados para mostrar detalles
+            const registrosAfectados = await obtenerRegistrosAfectados(id, 'operario', 5);
+            
+            return res.status(200).json({
+                puedeEliminar: false,
+                mensaje: verificacion.mensaje,
+                detalles: verificacion.detalles,
+                registrosAfectados,
+                totalRegistros: verificacion.registrosAfectados
+            });
+        }
+
+        res.status(200).json({
+            puedeEliminar: true,
+            mensaje: verificacion.mensaje,
+            operario: {
+                id: operario._id,
+                name: operario.name,
+                cedula: operario.cedula
+            }
+        });
+
+    } catch (error) {
+        console.error('Error verificando integridad del operario:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
 };
 
 module.exports = {
@@ -115,5 +185,6 @@ module.exports = {
   obtenerOperario,
   actualizarOperario,
   eliminarOperario,
+  verificarIntegridadOperario,
 };
 

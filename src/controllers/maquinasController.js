@@ -1,4 +1,5 @@
 const Maquina = require('../models/Maquina'); 
+const { verificarIntegridadReferencial, obtenerRegistrosAfectados } = require('../utils/integridadReferencial');
 
 // Obtener todas las máquinas
 const obtenerMaquinas = async (req, res) => {
@@ -77,13 +78,82 @@ const actualizarMaquina = async (req, res) => {
 // Eliminar una máquina
 const eliminarMaquina = async (req, res) => {
     try {
-        const maquina = await Maquina.findByIdAndDelete(req.params.id);
+        const { id } = req.params;
+        
+        // Verificar si la máquina existe
+        const maquina = await Maquina.findById(id);
         if (!maquina) {
             return res.status(404).json({ message: 'Máquina no encontrada' });
         }
-        res.json({ message: 'Máquina eliminada correctamente' });
+
+        // Verificar si la máquina tiene registros de producción asociados
+        const Produccion = require('../models/Produccion');
+        const registrosProduccion = await Produccion.countDocuments({ maquina: id });
+        
+        if (registrosProduccion > 0) {
+            return res.status(409).json({ 
+                message: 'No se puede eliminar la máquina porque tiene registros de producción asociados',
+                conflicto: 'integridad_referencial',
+                detalles: {
+                    entidad: 'maquina',
+                    nombre: maquina.nombre,
+                    registrosAfectados: registrosProduccion,
+                    sugerencia: 'Primero elimine o reasigne los registros de producción asociados'
+                }
+            });
+        }
+
+        // Si no hay registros asociados, proceder con la eliminación
+        const maquinaEliminada = await Maquina.findByIdAndDelete(id);
+        res.json({ 
+            message: 'Máquina eliminada exitosamente',
+            maquina: maquinaEliminada
+        });
     } catch (error) {
+        console.error('Error al eliminar máquina:', error);
         res.status(500).json({ message: error.message });
+    }
+};
+
+// Verificar integridad referencial antes de eliminar
+const verificarIntegridadMaquina = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Verificar si la máquina existe
+        const maquina = await Maquina.findById(id);
+        if (!maquina) {
+            return res.status(404).json({ message: 'Máquina no encontrada' });
+        }
+
+        // Verificar integridad referencial
+        const verificacion = await verificarIntegridadReferencial(id, 'maquina', maquina.nombre);
+        
+        if (!verificacion.puedeEliminar) {
+            // Obtener algunos registros afectados para mostrar detalles
+            const registrosAfectados = await obtenerRegistrosAfectados(id, 'maquina', 5);
+            
+            return res.status(200).json({
+                puedeEliminar: false,
+                mensaje: verificacion.mensaje,
+                detalles: verificacion.detalles,
+                registrosAfectados,
+                totalRegistros: verificacion.registrosAfectados
+            });
+        }
+
+        res.status(200).json({
+            puedeEliminar: true,
+            mensaje: verificacion.mensaje,
+            maquina: {
+                id: maquina._id,
+                nombre: maquina.nombre
+            }
+        });
+
+    } catch (error) {
+        console.error('Error verificando integridad de la máquina:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -92,5 +162,6 @@ module.exports = {
     obtenerMaquina,
     crearMaquina,
     actualizarMaquina,
-    eliminarMaquina
+    eliminarMaquina,
+    verificarIntegridadMaquina
 };

@@ -5,13 +5,15 @@ const {
     obtenerMaquina,
     crearMaquina,
     actualizarMaquina,
-    eliminarMaquina
+    eliminarMaquina,
+    verificarIntegridadMaquina
 } = require('../controllers/maquinasController');
 
 router.get('/', obtenerMaquinas);
 router.get('/:id', obtenerMaquina);
 router.post('/', crearMaquina);
 router.put('/:id', actualizarMaquina);
+router.get('/:id/verificar-integridad', verificarIntegridadMaquina);
 router.delete('/:id', eliminarMaquina);
 
 module.exports = router;

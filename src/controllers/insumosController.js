@@ -1,4 +1,5 @@
 const Insumos = require('../models/Insumos');
+const { verificarIntegridadReferencial, obtenerRegistrosAfectados } = require('../utils/integridadReferencial');
 
 // Obtener todos los insumos
 const obtenerInsumos = async (req, res) => {
@@ -76,13 +77,82 @@ const actualizarInsumo = async (req, res) => {
 // Eliminar un insumo
 const eliminarInsumo = async (req, res) => {
     try {
-        const insumo = await Insumos.findByIdAndDelete(req.params.id);
+        const { id } = req.params;
+        
+        // Verificar si el insumo existe
+        const insumo = await Insumos.findById(id);
         if (!insumo) {
             return res.status(404).json({ message: 'Insumo no encontrado' });
         }
-        res.json({ message: 'Insumo eliminado' });
+
+        // Verificar si el insumo tiene registros de producción asociados
+        const Produccion = require('../models/Produccion');
+        const registrosProduccion = await Produccion.countDocuments({ insumos: { $in: [id] } });
+        
+        if (registrosProduccion > 0) {
+            return res.status(409).json({ 
+                message: 'No se puede eliminar el insumo porque tiene registros de producción asociados',
+                conflicto: 'integridad_referencial',
+                detalles: {
+                    entidad: 'insumo',
+                    nombre: insumo.nombre,
+                    registrosAfectados: registrosProduccion,
+                    sugerencia: 'Primero elimine o reasigne los registros de producción asociados'
+                }
+            });
+        }
+
+        // Si no hay registros asociados, proceder con la eliminación
+        const insumoEliminado = await Insumos.findByIdAndDelete(id);
+        res.json({ 
+            message: 'Insumo eliminado exitosamente',
+            insumo: insumoEliminado
+        });
     } catch (error) {
+        console.error('Error al eliminar insumo:', error);
         res.status(500).json({ message: error.message });
+    }
+};
+
+// Verificar integridad referencial antes de eliminar
+const verificarIntegridadInsumo = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Verificar si el insumo existe
+        const insumo = await Insumos.findById(id);
+        if (!insumo) {
+            return res.status(404).json({ message: 'Insumo no encontrado' });
+        }
+
+        // Verificar integridad referencial
+        const verificacion = await verificarIntegridadReferencial(id, 'insumo', insumo.nombre);
+        
+        if (!verificacion.puedeEliminar) {
+            // Obtener algunos registros afectados para mostrar detalles
+            const registrosAfectados = await obtenerRegistrosAfectados(id, 'insumo', 5);
+            
+            return res.status(200).json({
+                puedeEliminar: false,
+                mensaje: verificacion.mensaje,
+                detalles: verificacion.detalles,
+                registrosAfectados,
+                totalRegistros: verificacion.registrosAfectados
+            });
+        }
+
+        res.status(200).json({
+            puedeEliminar: true,
+            mensaje: verificacion.mensaje,
+            insumo: {
+                id: insumo._id,
+                nombre: insumo.nombre
+            }
+        });
+
+    } catch (error) {
+        console.error('Error verificando integridad del insumo:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -91,5 +161,6 @@ module.exports = {
     obtenerInsumo,
     crearInsumo,
     actualizarInsumo,
-    eliminarInsumo
+    eliminarInsumo,
+    verificarIntegridadInsumo
 };

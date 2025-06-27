@@ -1,4 +1,5 @@
 const AreaProduccion = require('../models/AreaProduccion');
+const { verificarIntegridadReferencial, obtenerRegistrosAfectados } = require('../utils/integridadReferencial');
 
 // Obtener todas las áreas de producción
 const obtenerAreas = async (req, res) => {
@@ -77,14 +78,83 @@ const actualizarArea = async (req, res) => {
 // Eliminar un área de producción
 const eliminarArea = async (req, res) => {
     try {
-        const area = await AreaProduccion.findByIdAndDelete(req.params.id);
+        const { id } = req.params;
+        
+        // Verificar si el área existe
+        const area = await AreaProduccion.findById(id);
         if (!area) {
             return res.status(404).json({ message: 'Área no encontrada' });
         }
-        res.json({ message: 'Área eliminada' });
+
+        // Verificar si el área tiene registros de producción asociados
+        const Produccion = require('../models/Produccion');
+        const registrosProduccion = await Produccion.countDocuments({ areaProduccion: id });
+        
+        if (registrosProduccion > 0) {
+            return res.status(409).json({ 
+                message: 'No se puede eliminar el área porque tiene registros de producción asociados',
+                conflicto: 'integridad_referencial',
+                detalles: {
+                    entidad: 'area',
+                    nombre: area.nombre,
+                    registrosAfectados: registrosProduccion,
+                    sugerencia: 'Primero elimine o reasigne los registros de producción asociados'
+                }
+            });
+        }
+
+        // Si no hay registros asociados, proceder con la eliminación
+        const areaEliminada = await AreaProduccion.findByIdAndDelete(id);
+        res.json({ 
+            message: 'Área eliminada exitosamente',
+            area: areaEliminada
+        });
     } catch (error) {
+        console.error('Error al eliminar área:', error);
         res.status(500).json({ message: error.message });
     }    
+};
+
+// Verificar integridad referencial antes de eliminar
+const verificarIntegridadArea = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Verificar si el área existe
+        const area = await AreaProduccion.findById(id);
+        if (!area) {
+            return res.status(404).json({ message: 'Área no encontrada' });
+        }
+
+        // Verificar integridad referencial
+        const verificacion = await verificarIntegridadReferencial(id, 'area', area.nombre);
+        
+        if (!verificacion.puedeEliminar) {
+            // Obtener algunos registros afectados para mostrar detalles
+            const registrosAfectados = await obtenerRegistrosAfectados(id, 'area', 5);
+            
+            return res.status(200).json({
+                puedeEliminar: false,
+                mensaje: verificacion.mensaje,
+                detalles: verificacion.detalles,
+                registrosAfectados,
+                totalRegistros: verificacion.registrosAfectados
+            });
+        }
+
+        res.status(200).json({
+            puedeEliminar: true,
+            mensaje: verificacion.mensaje,
+            area: {
+                id: area._id,
+                nombre: area.nombre
+            }
+        });
+
+    } catch (error) {
+        console.error('Error verificando integridad del área:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
 };
 
 module.exports = {
@@ -92,6 +162,7 @@ module.exports = {
     obtenerArea,
     crearArea,
     actualizarArea,
-    eliminarArea
+    eliminarArea,
+    verificarIntegridadArea
 };
 

@@ -5,13 +5,15 @@ const {
     obtenerInsumo,
     crearInsumo,
     actualizarInsumo,
-    eliminarInsumo
+    eliminarInsumo,
+    verificarIntegridadInsumo
 } = require('../controllers/insumosController');
 
 router.get('/', obtenerInsumos);
 router.get('/:id', obtenerInsumo);
 router.post('/', crearInsumo);
 router.put('/:id', actualizarInsumo);
+router.get('/:id/verificar-integridad', verificarIntegridadInsumo);
 router.delete('/:id', eliminarInsumo);
 
 module.exports = router;
