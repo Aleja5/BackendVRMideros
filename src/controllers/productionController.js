@@ -806,6 +806,28 @@ exports.getAllOtiParaFiltros = async (req, res) => {
     }
 };
 
+// NUEVO: Obtener una OTI específica por ID
+exports.getOtiById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ msg: "ID de OTI no válido" });
+        }
+        
+        const oti = await Oti.findById(id, '_id numeroOti');
+        
+        if (!oti) {
+            return res.status(404).json({ msg: "OTI no encontrada" });
+        }
+        
+        res.status(200).json(oti);
+    } catch (error) {
+        logger.error("Error al obtener OTI por ID:", error);
+        res.status(500).json({ msg: "Error interno del servidor al obtener OTI" });
+    }
+};
+
 // NUEVO: Obtener todos los Operarios para filtros
 exports.getAllOperariosParaFiltros = async (req, res) => {
     try {

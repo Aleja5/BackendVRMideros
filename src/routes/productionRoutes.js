@@ -10,6 +10,7 @@ const productionController = require('../controllers/productionController'); // 
 
 // Rutas para obtener listas para los filtros del FilterPanel
 router.get('/oti', productionController.getAllOtiParaFiltros);
+router.get('/oti/:id', productionController.getOtiById); // NUEVO: Obtener OTI específica por ID
 router.get('/operarios', productionController.getAllOperariosParaFiltros);
 router.get('/operarios-por-oti/:otiId', productionController.getOperariosPorOti); // NUEVO: Operarios filtrados por OTI
 
