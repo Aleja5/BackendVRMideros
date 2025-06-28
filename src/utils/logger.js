@@ -38,7 +38,7 @@ if (process.env.NODE_ENV !== 'production') {
 const safeLog = {
   info: (message, meta = {}) => {
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`ℹ️ ${message}`, meta);
+      // REMOVED: console.log(`ℹ️ ${message}`, meta);
     }
     logger.info(message, meta);
   },
@@ -55,14 +55,14 @@ const safeLog = {
   
   success: (message, meta = {}) => {
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`✅ ${message}`, meta);
+      // REMOVED: console.log(`✅ ${message}`, meta);
     }
     logger.info(`SUCCESS: ${message}`, meta);
   },
   
   debug: (message, meta = {}) => {
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`🔍 ${message}`, meta);
+      // REMOVED: console.log(`🔍 ${message}`, meta);
     }
     logger.debug(message, meta);
   }

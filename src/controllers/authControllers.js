@@ -28,7 +28,7 @@ exports.login = async (req, res) => {
     
     // Solo log de desarrollo
     if (process.env.NODE_ENV !== 'production') {
-        console.log('🔍 Intento de login para:', emailToSearch);
+        // REMOVED: console.log('🔍 Intento de login para:', emailToSearch);
     }
     
     const user = await User.findOne({ email: emailToSearch });
@@ -63,7 +63,7 @@ exports.login = async (req, res) => {
     user.lastActivity = new Date();
     await user.save();
 
-    console.log(`✅ Login exitoso: ${user.email} (${user.role})`);
+    // REMOVED: console.log(`✅ Login exitoso: ${user.email} (${user.role})`);
     
     res.json({
       message: 'Inicio de sesión exitoso',
@@ -109,7 +109,7 @@ exports.forgotPassword = async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetLink = `${frontendUrl}/reset-password/${resetToken}`;
 
-    console.log(`🔗 Enlace de reset generado: ${resetLink}`);
+    // REMOVED: console.log(`🔗 Enlace de reset generado: ${resetLink}`);
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
@@ -139,12 +139,12 @@ exports.forgotPassword = async (req, res) => {
         };
 
     if (process.env.NODE_ENV !== 'production') {
-        console.log('📧 Enviando correo de recuperación a:', email);
+        // REMOVED: console.log('📧 Enviando correo de recuperación a:', email);
     }
 
     await transporter.sendMail(mailOptions);
     
-    console.log(`✅ Correo de recuperación enviado a: ${email}`);
+    // REMOVED: console.log(`✅ Correo de recuperación enviado a: ${email}`);
 
         res.status(200).json({
             message: 'Correo de recuperación de contraseña enviado.',
@@ -191,7 +191,7 @@ exports.resetPassword = async (req, res) => {
 
     await user.save({ validateBeforeSave: false });
     
-    console.log(`✅ Contraseña restablecida exitosamente para: ${user.email}`);
+    // REMOVED: console.log(`✅ Contraseña restablecida exitosamente para: ${user.email}`);
 
     res.status(200).json({ message: 'Contraseña actualizada correctamente' });
   } catch (error) {
@@ -244,7 +244,7 @@ exports.refreshToken = async (req, res) => {
     user.lastActivity = new Date();
     await user.save();
 
-    console.log(`🔄 Token renovado para: ${user.email}`);
+    // REMOVED: console.log(`🔄 Token renovado para: ${user.email}`);
 
     res.json({
       message: 'Token renovado exitosamente',
@@ -274,7 +274,7 @@ exports.logout = async (req, res) => {
       if (user) {
         user.refreshToken = null;
         await user.save();
-        console.log(`🚪 Logout exitoso para: ${user.email}`);
+        // REMOVED: console.log(`🚪 Logout exitoso para: ${user.email}`);
       }
     }
 

@@ -33,7 +33,7 @@ async function consolidarJornadasDuplicadas(operarioId, jornadas) {
     // Procesar cada grupo de jornadas del mismo día
     for (const [fechaStr, jornadasDelDia] of Object.entries(jornadasPorFecha)) {
         if (jornadasDelDia.length > 1) {
-            console.log(`🔧 Consolidando ${jornadasDelDia.length} jornadas duplicadas del ${new Date(fechaStr).toLocaleDateString('es-ES')}`);
+            // REMOVED: console.log(`🔧 Consolidando ${jornadasDelDia.length} jornadas duplicadas del ${new Date(fechaStr).toLocaleDateString('es-ES')}`);
             
             // Combinar todos los registros únicos
             const registrosCombinados = new Set();
@@ -79,14 +79,14 @@ async function consolidarJornadasDuplicadas(operarioId, jornadas) {
             });
             
             jornadasConsolidadas.push(jornadaPopulada);
-            console.log(`✅ Jornada consolidada con ${registrosCombinados.size} actividades`);
+            // REMOVED: console.log(`✅ Jornada consolidada con ${registrosCombinados.size} actividades`);
         } else {
             // Si solo hay una jornada, normalizarla y agregarla
             const jornada = jornadasDelDia[0];
             const fechaNormalizada = normalizarFecha(jornada.fecha);
             
             if (jornada.fecha.getTime() !== fechaNormalizada.getTime()) {
-                console.log(`🔧 Normalizando fecha de jornada: ${jornada.fecha} -> ${fechaNormalizada}`);
+                // REMOVED: console.log(`🔧 Normalizando fecha de jornada: ${jornada.fecha} -> ${fechaNormalizada}`);
                 jornada.fecha = fechaNormalizada;
                 await jornada.save();
             }
@@ -257,9 +257,9 @@ exports.obtenerJornadasPorOperario = async (req, res) => {
         }
 
         // NUEVA LÓGICA: Consolidar jornadas duplicadas antes de procesarlas
-        console.log(`🔍 Encontradas ${jornadas.length} jornadas antes de consolidación`);
+        // REMOVED: console.log(`🔍 Encontradas ${jornadas.length} jornadas antes de consolidación`);
         const jornadasConsolidadas = await consolidarJornadasDuplicadas(id, jornadas);
-        console.log(`✅ ${jornadasConsolidadas.length} jornadas después de consolidación`);
+        // REMOVED: console.log(`✅ ${jornadasConsolidadas.length} jornadas después de consolidación`);
 
         // Hacer populate completo para cada jornada consolidada
         const jornadasConTiempo = await Promise.all(jornadasConsolidadas.map(async (jornada) => {
@@ -318,7 +318,7 @@ exports.obtenerJornadasPorOperarioYFecha = async (req, res) => {
             }
         });
 
-        console.log(`🔍 Encontradas ${jornadas.length} jornadas para ${operario ? operario.name : 'ID ' + operarioId} en ${fecha}`);
+        // REMOVED: console.log(`🔍 Encontradas ${jornadas.length} jornadas para ${operario ? operario.name : 'ID ' + operarioId} en ${fecha}`);
 
         if (jornadas.length === 0) {
             return res.status(404).json({ message: "No se encontraron jornadas para este operario en esta fecha." });
@@ -326,7 +326,7 @@ exports.obtenerJornadasPorOperarioYFecha = async (req, res) => {
 
         // NUEVA LÓGICA: Consolidar jornadas duplicadas antes de devolverlas
         const jornadasConsolidadas = await consolidarJornadasDuplicadas(operarioId, jornadas);
-        console.log(`✅ ${jornadasConsolidadas.length} jornadas después de consolidación`);
+        // REMOVED: console.log(`✅ ${jornadasConsolidadas.length} jornadas después de consolidación`);
 
         res.status(200).json(jornadasConsolidadas);
     } catch (error) {

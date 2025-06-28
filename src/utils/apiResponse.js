@@ -196,7 +196,7 @@ const requestLogger = (req, res, next) => {
     const startTime = Date.now();
     
     // Log de request entrante
-    console.log(`📥 ${req.method} ${req.path}`, {
+    // REMOVED: console.log(`📥 ${req.method} ${req.path}`, {
         ip: req.ip,
         userAgent: req.get('User-Agent'),
         timestamp: new Date().toISOString()
@@ -206,7 +206,7 @@ const requestLogger = (req, res, next) => {
     const originalSend = res.send;
     res.send = function(data) {
         const duration = Date.now() - startTime;
-        console.log(`📤 ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+        // REMOVED: console.log(`📤 ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
         originalSend.call(this, data);
     };
 
