@@ -10,6 +10,12 @@ const operarioSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true, // La cédula debe ser única para evitar duplicados
+  },
+  estado: {
+    type: String,
+    enum: ['activo', 'inactivo'],
+    default: 'activo',
+    required: true
   }
 });
 

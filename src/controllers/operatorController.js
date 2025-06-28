@@ -44,17 +44,26 @@ const crearOperario = async (req, res) => {
 
 // Obtener todos los operarios
 const obtenerOperarios = async (req, res) => {
-  const { page = 1, limit = 10, search } = req.query;
-  // REMOVED: console.log('Parámetro search recibido:', search);
-  const query = search ? { name: { $regex: search, $options: 'i' } } : {};
-  // REMOVED: console.log('Consulta construida:', query);
+  const { page = 1, limit = 10, search, estado = 'activo' } = req.query;
+  
+  let query = {};
+  
+  // Solo filtrar por estado si no es "todos"
+  if (estado !== 'todos') {
+    query.estado = estado;
+  }
+  
+  if (search) {
+    query.name = { $regex: search, $options: 'i' };
+  }
+  
   try {
       const totalResults = await Operario.countDocuments(query);
       const operarios = await Operario.find(query)
           .sort({ name: 1 })
           .skip((page - 1) * limit)
           .limit(Number(limit));
-      // REMOVED: console.log('Operarios encontrados:', operarios.length);
+      
       res.json({
           operarios,
           totalPages: Math.ceil(totalResults / limit),
@@ -178,6 +187,39 @@ const verificarIntegridadOperario = async (req, res) => {
     }
 };
 
+// Cambiar estado de un operario (activo/inactivo)
+const cambiarEstadoOperario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    // Validar que el estado sea válido
+    if (!['activo', 'inactivo'].includes(estado)) {
+      return res.status(400).json({ 
+        message: 'Estado inválido. Debe ser "activo" o "inactivo"' 
+      });
+    }
+
+    const operarioActualizado = await Operario.findByIdAndUpdate(
+      id,
+      { estado },
+      { new: true, runValidators: true }
+    );
+
+    if (!operarioActualizado) {
+      return res.status(404).json({ message: 'Operario no encontrado' });
+    }
+
+    res.json({
+      message: `Operario marcado como ${estado} exitosamente`,
+      operario: operarioActualizado
+    });
+  } catch (error) {
+    console.error('Error al cambiar estado del operario:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   validateCedula,
   crearOperario,
@@ -186,5 +228,6 @@ module.exports = {
   actualizarOperario,
   eliminarOperario,
   verificarIntegridadOperario,
+  cambiarEstadoOperario,
 };
 
