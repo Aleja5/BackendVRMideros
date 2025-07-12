@@ -17,12 +17,20 @@ const validateCedula = async (req, res) => {
             return res.status(404).json({ message: "Operario no encontrado" });
         }
 
+        // Verificar si el operario está activo
+        if (operario.estado !== 'activo') {
+            return res.status(403).json({ 
+                message: "Acceso denegado: El operario se encuentra inactivo. Contacte al administrador." 
+            });
+        }
+
         res.status(200).json({
             message: "Cédula válida, acceso permitido",
             operario: {
                 id: operario._id,
                 name: operario.name,
                 cedula: operario.cedula,
+                estado: operario.estado
             }
         });
     } catch (error) {
