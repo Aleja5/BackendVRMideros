@@ -11,7 +11,7 @@ const produccionSchema = new mongoose.Schema({
     insumos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Insumo', required: true }],
     jornada: {type:mongoose.Schema.Types.ObjectId, ref: 'JornadaProduccion', required: true},
 
-    tipoTiempo: { type: String, enum: ['Preparación', 'Operación', 'Alimentación'], required: true },
+    tipoTiempo: { type: String, enum: ['Preparación', 'Operación', 'Alimentación', 'Capacitación'], required: true },
     horaInicio: { type: Date, required: true },
     horaFin: { type: Date, required: true },
     tiempo: {type: Number, required: true},
