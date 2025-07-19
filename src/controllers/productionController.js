@@ -185,8 +185,10 @@ exports.registrarProduccion = async (req, res) => {
             // Por ahora, solo validamos que sea un array. El modelo Produccion.js ya requiere que los elementos internos sean ObjectId.
         }
         if (!areaProduccion) validationErrors.push('areaProduccion');
-        if (!maquina) validationErrors.push('maquina');
-        if (!insumos || !Array.isArray(insumos)) { // Asegura que insumos sea un array
+        if (!maquina || !Array.isArray(maquina)) { 
+            validationErrors.push('maquina (debe ser un array)');
+        }
+        if (!insumos || !Array.isArray(insumos)) { 
             validationErrors.push('insumos (debe ser un array)');
         }
         // Similar a procesos, puedes añadir validación de insumos.length === 0 si es necesario.
@@ -369,7 +371,7 @@ exports.actualizarProduccion = async (req, res) => {
         // Convertir IDs de string a ObjectId donde sea necesario
         const operarioId = new mongoose.Types.ObjectId(operario);
         const areaProduccionId = new mongoose.Types.ObjectId(areaProduccion);
-        const maquinaId = new mongoose.Types.ObjectId(maquina);
+        const maquinaId = Array.isArray(maquina) ? maquina.map(iId => new mongoose.Types.ObjectId(iId)) : [new mongoose.Types.ObjectId(maquina)];
         const procesosIds = Array.isArray(procesos) ? procesos.map(pId => new mongoose.Types.ObjectId(pId)) : [new mongoose.Types.ObjectId(procesos)];
         const insumosIds = Array.isArray(insumos) ? insumos.map(iId => new mongoose.Types.ObjectId(iId)) : [new mongoose.Types.ObjectId(insumos)];
 
@@ -699,18 +701,19 @@ exports.buscarProduccion = async (req, res) => {
         // Filter by Maquina
         if (maquina && maquina.trim() !== '') {
             const maquinaTrimmed = maquina.trim();
+            let maquinaIdToQuery;
             if (mongoose.Types.ObjectId.isValid(maquinaTrimmed)) {
-                query.maquina = new mongoose.Types.ObjectId(maquinaTrimmed);
-                // REMOVED: console.log('Filtro Máquina aplicado (ID):', query.maquina);
+                maquinaIdToQuery = new mongoose.Types.ObjectId(maquinaTrimmed);
             } else {
                 const maquinaDoc = await Maquina.findOne({ nombre: maquinaTrimmed });
                 if (maquinaDoc) {
-                    query.maquina = maquinaDoc._id;
-                    // REMOVED: console.log('Filtro Máquina aplicado (nombre):', query.maquina);
-                } else {
-                    // REMOVED: console.log('Máquina no encontrada:', maquinaTrimmed);
+                    maquinaIdToQuery = maquinaDoc._id;                    
+                } else {                    
                     return res.status(200).json({ totalResultados: 0, resultados: [] });
                 }
+            }
+            if (maquinaIdToQuery) {
+                query.maquina = { $in: [maquinaIdToQuery] };
             }
         }
 
@@ -724,19 +727,14 @@ exports.buscarProduccion = async (req, res) => {
                 const insumoDoc = await Insumo.findOne({ nombre: insumosTrimmed });
                 if (insumoDoc) {
                     insumoIdToQuery = insumoDoc._id; // This is already an ObjectId
-                } else {
-                    // REMOVED: console.log('Insumo no encontrado:', insumosTrimmed);
+                } else {                    
                     return res.status(200).json({ totalResultados: 0, resultados: [] });
                 }
             }
             if (insumoIdToQuery) {
                 query.insumos = { $in: [insumoIdToQuery] };
-                // REMOVED: console.log('Filtro Insumos aplicado:', query.insumos);
             }
         }
-
-        // Log de la consulta final construida
-        // REMOVED: console.log('Consulta MongoDB construida:', JSON.stringify(query, null, 2));
 
         const totalResultados = await Produccion.countDocuments(query);
         // REMOVED: console.log('Total de resultados encontrados:', totalResultados);
@@ -795,7 +793,7 @@ exports.buscarPorFechas = async (req, res) => {
     }
 };
 
-// NUEVO: Obtener todas las OTIs para filtros
+// Obtener todas las OTIs para filtros
 exports.getAllOtiParaFiltros = async (req, res) => {
     try {
         const otis = await Oti.find({}, '_id numeroOti').sort({ numeroOti: 1 });

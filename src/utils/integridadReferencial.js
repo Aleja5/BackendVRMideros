@@ -19,7 +19,7 @@ async function verificarIntegridadReferencial(entidadId, tipoEntidad, nombreEnti
                 query = { operario: entidadId };
                 break;
             case 'maquina':
-                query = { maquina: entidadId };
+                query = { maquina: { $in: [entidadId] } };
                 break;
             case 'area':
                 query = { areaProduccion: entidadId };
@@ -91,7 +91,7 @@ async function obtenerRegistrosAfectados(entidadId, tipoEntidad, limite = 5) {
                 query = { operario: entidadId };
                 break;
             case 'maquina':
-                query = { maquina: entidadId };
+                query = { maquina: { $in: [entidadId] } };
                 break;
             case 'area':
                 query = { areaProduccion: entidadId };

@@ -14,31 +14,31 @@ const { normalizarFecha } = require('../utils/manejoFechas');
  */
 async function consolidarJornadasDuplicadas(operarioId, jornadas) {
     if (!jornadas || jornadas.length <= 1) return jornadas;
-    
+
     // Agrupar jornadas por fecha normalizada
     const jornadasPorFecha = {};
-    
+
     for (const jornada of jornadas) {
         const fechaNormalizada = normalizarFecha(jornada.fecha);
         const claveDate = fechaNormalizada.toDateString();
-        
+
         if (!jornadasPorFecha[claveDate]) {
             jornadasPorFecha[claveDate] = [];
         }
         jornadasPorFecha[claveDate].push(jornada);
     }
-    
+
     const jornadasConsolidadas = [];
-    
+
     // Procesar cada grupo de jornadas del mismo día
     for (const [fechaStr, jornadasDelDia] of Object.entries(jornadasPorFecha)) {
         if (jornadasDelDia.length > 1) {
             // REMOVED: console.log(`🔧 Consolidando ${jornadasDelDia.length} jornadas duplicadas del ${new Date(fechaStr).toLocaleDateString('es-ES')}`);
-            
+
             // Combinar todos los registros únicos
             const registrosCombinados = new Set();
             const fechaNormalizada = normalizarFecha(jornadasDelDia[0].fecha);
-            
+
             for (const jornada of jornadasDelDia) {
                 if (jornada.registros) {
                     jornada.registros.forEach(registro => {
@@ -50,12 +50,12 @@ async function consolidarJornadasDuplicadas(operarioId, jornadas) {
                     });
                 }
             }
-            
+
             // Eliminar todas las jornadas duplicadas de la base de datos
             for (const jornada of jornadasDelDia) {
                 await Jornada.findByIdAndDelete(jornada._id);
             }
-            
+
             // Crear una nueva jornada consolidada
             const nuevaJornada = new Jornada({
                 operario: operarioId,
@@ -63,9 +63,9 @@ async function consolidarJornadasDuplicadas(operarioId, jornadas) {
                 registros: Array.from(registrosCombinados),
                 totalTiempoActividades: { horas: 0, minutos: 0 }
             });
-            
+
             await nuevaJornada.save();
-            
+
             // Hacer populate para devolver al frontend
             const jornadaPopulada = await Jornada.findById(nuevaJornada._id).populate({
                 path: 'registros',
@@ -73,28 +73,28 @@ async function consolidarJornadasDuplicadas(operarioId, jornadas) {
                     { path: 'procesos', model: 'Proceso', select: 'nombre' },
                     { path: 'oti', select: 'numeroOti' },
                     { path: 'areaProduccion', select: 'nombre' },
-                    { path: 'maquina', select: 'nombre' },
+                    { path: 'maquina', model: 'Maquina', select: 'nombre' },
                     { path: 'insumos', model: 'Insumo', select: 'nombre' }
                 ]
             });
-            
+
             jornadasConsolidadas.push(jornadaPopulada);
             // REMOVED: console.log(`✅ Jornada consolidada con ${registrosCombinados.size} actividades`);
         } else {
             // Si solo hay una jornada, normalizarla y agregarla
             const jornada = jornadasDelDia[0];
             const fechaNormalizada = normalizarFecha(jornada.fecha);
-            
+
             if (jornada.fecha.getTime() !== fechaNormalizada.getTime()) {
                 // REMOVED: console.log(`🔧 Normalizando fecha de jornada: ${jornada.fecha} -> ${fechaNormalizada}`);
                 jornada.fecha = fechaNormalizada;
                 await jornada.save();
             }
-            
+
             jornadasConsolidadas.push(jornada);
         }
     }
-    
+
     return jornadasConsolidadas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 }
 
@@ -165,11 +165,11 @@ exports.obtenerJornadas = async (req, res) => {
                     { path: 'oti', select: '_id numeroOti' },
                     { path: 'procesos', model: 'Proceso', select: 'nombre' },
                     { path: 'areaProduccion', select: 'nombre' },
-                    { path: 'maquina', select: 'nombre' },
+                    { path: 'maquina', model: 'Maquina', select: 'nombre' },
                     { path: 'insumos', model: 'Insumo', select: 'nombre' }
                 ],
             });
-        
+
         const jornadasConTiempo = jornadas.map(jornada => {
             return {
                 ...jornada.toObject(),
@@ -199,15 +199,15 @@ exports.obtenerJornada = async (req, res) => {
         const jornada = await Jornada.findById(id)
             .populate('operario', 'name') // <--- Añadir esta línea para popular el operario
             .populate({
-            path: 'registros',
-            populate: [
-                { path: 'oti', model: 'Oti', select: '_id numeroOti' },
-                { path: 'procesos', model: 'Proceso', select: 'nombre' }, 
-                { path: 'areaProduccion', model: 'AreaProduccion', select: 'nombre' },
-                { path: 'maquina', model: 'Maquina', select: 'nombre' },
-                { path: 'insumos', model: 'Insumo', select: 'nombre' }
-            ]
-        });
+                path: 'registros',
+                populate: [
+                    { path: 'oti', model: 'Oti', select: '_id numeroOti' },
+                    { path: 'procesos', model: 'Proceso', select: 'nombre' },
+                    { path: 'areaProduccion', model: 'AreaProduccion', select: 'nombre' },
+                    { path: 'maquina', model: 'Maquina', select: 'nombre' },
+                    { path: 'insumos', model: 'Insumo', select: 'nombre' }
+                ]
+            });
 
         if (!jornada) {
             console.error(`Jornada no encontrada para ID: ${id}`);
@@ -264,11 +264,11 @@ exports.obtenerJornadasPorOperario = async (req, res) => {
         // Hacer populate completo para cada jornada consolidada
         const jornadasConTiempo = await Promise.all(jornadasConsolidadas.map(async (jornada) => {
             // Si ya está populada (viene de consolidación), devolverla directamente
-            if (jornada.registros && jornada.registros.length > 0 && 
+            if (jornada.registros && jornada.registros.length > 0 &&
                 typeof jornada.registros[0] === 'object' && jornada.registros[0].oti) {
                 return jornada;
             }
-            
+
             // Si no está populada, hacer populate
             const populatedJornada = await Jornada.findById(jornada._id).populate({
                 path: 'registros',
@@ -276,7 +276,7 @@ exports.obtenerJornadasPorOperario = async (req, res) => {
                     { path: 'procesos', model: 'Proceso', select: 'nombre' },
                     { path: 'oti', select: 'numeroOti' },
                     { path: 'areaProduccion', select: 'nombre' },
-                    { path: 'maquina', select: 'nombre' },
+                    { path: 'maquina', model: 'Maquina', select: 'nombre' },
                     { path: 'insumos', model: 'Insumo', select: 'nombre' }
                 ]
             });
@@ -292,7 +292,7 @@ exports.obtenerJornadasPorOperario = async (req, res) => {
         res.status(500).json({ msg: 'Error al obtener las jornadas' });
     }
 };
-  
+
 
 // @desc    Obtener jornadas por operario y fecha
 // @route   GET /api/jornadas/operario/:operarioId/fecha/:fecha
@@ -307,7 +307,7 @@ exports.obtenerJornadasPorOperarioYFecha = async (req, res) => {
             // REMOVED: console.log(`✅ Operario encontrado: ${operario.name}`);
         } else {
             // REMOVED: console.log(`⚠️ Operario no encontrado con ID: ${operarioId}`);
-        }        const { obtenerRangoDia } = require('../utils/manejoFechas');
+        } const { obtenerRangoDia } = require('../utils/manejoFechas');
         const rango = obtenerRangoDia(fecha);
 
         const jornadas = await Jornada.find({
@@ -344,13 +344,13 @@ exports.actualizarJornada = async (req, res) => {
     try {
         const { id } = req.params;
         const { horaInicio, horaFin, registros, estado } = req.body;
-        
+
         // Validar ID de la jornada
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ error: 'ID de jornada inválido' });
         }
-        
-        const updateFields = { };
+
+        const updateFields = {};
         if (horaInicio !== undefined) updateFields.horaInicio = horaInicio;
         if (horaFin !== undefined) updateFields.horaFin = horaFin;
         if (registros !== undefined) updateFields.registros = registros;
@@ -466,7 +466,7 @@ exports.agregarActividadAJornada = async (req, res) => {
         jornada.registros.push(nuevoRegistro._id);
         await jornada.save();
 
-       
+
 
         res.status(200).json({ msg: 'Actividad agregada con éxito', jornada: await Jornada.findById(jornadaId).populate('registros') });
 
@@ -541,7 +541,7 @@ exports.guardarJornadaCompleta = async (req, res) => {
                         if (mongoose.Types.ObjectId.isValid(numeroOti) && numeroOti.length === 24) {
                             return numeroOti;
                         }
-                        
+
                         // Si es un string, buscar o crear el OTI
                         let oti = await Oti.findOne({ numeroOti: numeroOti });
                         if (!oti) {
@@ -563,9 +563,18 @@ exports.guardarJornadaCompleta = async (req, res) => {
                     return res.status(400).json({ error: error.message });
                 }
 
-                // Validar IDs de ObjectId para otros campos
+                // Validar IDs de ObjectId para area
                 if (!mongoose.Types.ObjectId.isValid(actividad.areaProduccion)) return res.status(400).json({ error: 'ID de Área de Producción inválido en actividad' });
-                if (!mongoose.Types.ObjectId.isValid(actividad.maquina)) return res.status(400).json({ error: 'ID de Máquina inválido en actividad' });
+
+                // Validar 'maquina': debe ser un array de ObjectIds válidos y no vacío
+                if (!Array.isArray(actividad.maquina) || actividad.maquina.length === 0) {
+                    return res.status(400).json({ error: "El campo 'maquina' es requerido y debe ser un array no vacío de IDs en actividad." });
+                }
+                for (const maquinaId of actividad.maquina) {
+                    if (!mongoose.Types.ObjectId.isValid(maquinaId)) {
+                        return res.status(400).json({ error: `ID de maquina inválido (${maquinaId}) en actividad` });
+                    }
+                }
 
                 // Validar 'procesos': debe ser un array de ObjectIds válidos y no vacío
                 if (!Array.isArray(actividad.procesos) || actividad.procesos.length === 0) {
@@ -577,32 +586,27 @@ exports.guardarJornadaCompleta = async (req, res) => {
                     }
                 }
 
-                // Validar 'insumos': si se proporciona, debe ser un array de ObjectIds válidos. Si es requerido, no debe estar vacío.
-                // Asumiendo que insumos es opcional, pero si existe, debe ser un array de IDs.
-                if (actividad.insumos) { // Solo validar si 'insumos' existe
-                    if (!Array.isArray(actividad.insumos)) {
-                        return res.status(400).json({ error: "El campo 'insumos' debe ser un array de IDs si se proporciona." });
+                if (!Array.isArray(actividad.insumos) || actividad.insumos.length === 0) {
+                    return res.status(400).json({ error: "El campo 'insumos' es requerido y debe ser un array no vacío de IDs en actividad." });
+                }
+                for (const insumoId of actividad.insumos) {
+                    if (!mongoose.Types.ObjectId.isValid(insumoId)) {
+                        return res.status(400).json({ error: `ID de Insumo inválido (${insumoId}) en actividad` });
                     }
-                    if (actividad.insumos.length > 0) { // Solo validar IDs si el array no está vacío
-                        for (const insumoId of actividad.insumos) {
-                            if (!mongoose.Types.ObjectId.isValid(insumoId)) {
-                                return res.status(400).json({ error: `ID de Insumo inválido (${insumoId}) en actividad` });
-                            }
-                        }
-                    }                }
+                }
 
                 // Calcular tiempo en minutos si no se proporciona o es 0
                 let tiempoCalculado = actividad.tiempo || 0;
                 if (!tiempoCalculado || tiempoCalculado === 0) {
                     const inicio = new Date(actividad.horaInicio);
                     let fin = new Date(actividad.horaFin);
-                    
+
                     // Manejar cruce de medianoche: si fin <= inicio, asumir que fin es del día siguiente
                     if (fin <= inicio) {
                         // Agregar 24 horas (86400000 ms) a la hora de fin
                         fin = new Date(fin.getTime() + 24 * 60 * 60 * 1000);
                     }
-                    
+
                     if (inicio && fin && fin > inicio) {
                         tiempoCalculado = Math.round((fin - inicio) / (1000 * 60)); // Diferencia en minutos
                     } else {
@@ -617,8 +621,8 @@ exports.guardarJornadaCompleta = async (req, res) => {
                     oti: otiId, // Usar el ObjectId verificado/creado
                     procesos: actividad.procesos, // Array de ObjectIds
                     areaProduccion: actividad.areaProduccion,
-                    maquina: actividad.maquina,
-                    insumos: actividad.insumos || [], // Array de ObjectIds, o vacío si no se proporcionan
+                    maquina: actividad.maquina || [],
+                    insumos: actividad.insumos || [], // Array de ObjectIds
                     tipoTiempo: actividad.tipoTiempo,
                     horaInicio: actividad.horaInicio, // Se espera que sea una fecha ISO completa
                     horaFin: actividad.horaFin,       // Se espera que sea una fecha ISO completa
@@ -634,7 +638,7 @@ exports.guardarJornadaCompleta = async (req, res) => {
         // Añadir las IDs de los nuevos registros a la jornada, evitando duplicados si se reenvían actividades
         const registrosActualesComoStrings = jornada.registros.map(r => r.toString());
         const nuevosRegistrosComoStrings = idsNuevosRegistros.map(id => id.toString());
-        
+
         const todosLosRegistrosUnicos = [...new Set([...registrosActualesComoStrings, ...nuevosRegistrosComoStrings])];
         jornada.registros = todosLosRegistrosUnicos.map(idStr => new mongoose.Types.ObjectId(idStr));        // REMOVED: console.log(`✅ Se crearon ${idsNuevosRegistros.length} nuevos registros`);
         // REMOVED: console.log('💾 Guardando jornada con registros actualizados');
@@ -677,11 +681,11 @@ exports.guardarJornadaCompleta = async (req, res) => {
 exports.recalcularTiemposEfectivos = async (req, res) => {
     try {
         // REMOVED: console.log('🔄 Iniciando recálculo de tiempos efectivos...');
-        
+
         const jornadas = await Jornada.find({}).populate('registros');
-        
+
         if (jornadas.length === 0) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 message: 'No hay jornadas para procesar',
                 estadisticas: {
                     totalJornadas: 0,
@@ -690,37 +694,37 @@ exports.recalcularTiemposEfectivos = async (req, res) => {
                 }
             });
         }
-        
+
         let jornadasActualizadas = 0;
         let errores = 0;
         let jornadasConSolapamientos = 0;
         let tiempoTotalRecuperado = 0;
-        
+
         for (const jornada of jornadas) {
             try {
                 const tiempoAnterior = jornada.totalTiempoActividades?.tiempoSumado || 0;
-                
+
                 // Guardar la jornada para activar el pre-save hook con nueva lógica
                 await jornada.save();
-                
+
                 jornadasActualizadas++;
-                
+
                 // Verificar si hay solapamientos
                 if (jornada.totalTiempoActividades?.solapamientos) {
                     jornadasConSolapamientos++;
-                    const tiempoRecuperado = (jornada.totalTiempoActividades.tiempoSumado || 0) - 
-                                           (jornada.totalTiempoActividades.tiempoEfectivo || 0);
+                    const tiempoRecuperado = (jornada.totalTiempoActividades.tiempoSumado || 0) -
+                        (jornada.totalTiempoActividades.tiempoEfectivo || 0);
                     tiempoTotalRecuperado += tiempoRecuperado;
                 }
-                
+
                 // REMOVED: console.log(`✅ Jornada ${jornada._id} actualizada - Efectivo: ${jornada.totalTiempoActividades?.tiempoEfectivo || 0}min`);
-                
+
             } catch (error) {
                 console.error(`❌ Error procesando jornada ${jornada._id}:`, error.message);
                 errores++;
             }
         }
-        
+
         const estadisticas = {
             totalJornadas: jornadas.length,
             jornadasActualizadas,
@@ -732,19 +736,19 @@ exports.recalcularTiemposEfectivos = async (req, res) => {
                 minutos: tiempoTotalRecuperado % 60
             }
         };
-        
+
         // REMOVED: console.log('📊 Recálculo completado:', estadisticas);
-        
+
         res.status(200).json({
             message: 'Recálculo de tiempos efectivos completado',
             estadisticas
         });
-        
+
     } catch (error) {
         console.error('❌ Error durante el recálculo de tiempos:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Error interno del servidor durante el recálculo',
-            details: error.message 
+            details: error.message
         });
     }
 };

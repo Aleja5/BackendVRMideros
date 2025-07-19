@@ -53,8 +53,7 @@ const crearMaquina = async (req, res) => {
     const { nombre } = req.body;
     const nuevaMaquina = new Maquina({ nombre });
     try {
-        const maquinaGuardada = await nuevaMaquina.save();
-        // REMOVED: console.log('Máquina guardada:', maquinaGuardada);
+        const maquinaGuardada = await nuevaMaquina.save();        
         res.status(201).json(maquinaGuardada);
     } catch (error) {
         console.error('Error al guardar máquina:', error);
@@ -88,7 +87,7 @@ const eliminarMaquina = async (req, res) => {
 
         // Verificar si la máquina tiene registros de producción asociados
         const Produccion = require('../models/Produccion');
-        const registrosProduccion = await Produccion.countDocuments({ maquina: id });
+        const registrosProduccion = await Produccion.countDocuments({ maquina: { $in: [id]} });
         
         if (registrosProduccion > 0) {
             return res.status(409).json({ 
