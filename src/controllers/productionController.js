@@ -360,13 +360,13 @@ exports.actualizarProduccion = async (req, res) => {
         // Verificar si la fecha cambió
         const fechaCambio = fechaOriginalNormalizada.toDateString() !== fechaNuevaNormalizada.toDateString();
 
-        console.log('🔍 Información de actualización:');
-        console.log(`   ID actividad: ${_id}`);
-        console.log(`   Fecha original RAW: ${produccionOriginal.fecha}`);
-        console.log(`   Fecha original normalizada: ${fechaOriginalNormalizada.toLocaleDateString()}`);
-        console.log(`   Fecha nueva RAW: ${fecha}`);
-        console.log(`   Fecha nueva normalizada: ${fechaNuevaNormalizada.toLocaleDateString()}`);
-        console.log(`   ¿Cambió fecha?: ${fechaCambio}`);
+        // console.log('🔍 Información de actualización:');
+        // console.log(`   ID actividad: ${_id}`);
+        // console.log(`   Fecha original RAW: ${produccionOriginal.fecha}`);
+        // console.log(`   Fecha original normalizada: ${fechaOriginalNormalizada.toLocaleDateString()}`);
+        // console.log(`   Fecha nueva RAW: ${fecha}`);
+        // console.log(`   Fecha nueva normalizada: ${fechaNuevaNormalizada.toLocaleDateString()}`);
+        // console.log(`   ¿Cambió fecha?: ${fechaCambio}`);
 
         // Convertir IDs de string a ObjectId donde sea necesario
         const operarioId = new mongoose.Types.ObjectId(operario);

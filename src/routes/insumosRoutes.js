@@ -6,7 +6,8 @@ const {
     crearInsumo,
     actualizarInsumo,
     eliminarInsumo,
-    verificarIntegridadInsumo
+    verificarIntegridadInsumo,
+    cambiarEstadoInsumo
 } = require('../controllers/insumosController');
 
 router.get('/', obtenerInsumos);
@@ -15,5 +16,6 @@ router.post('/', crearInsumo);
 router.put('/:id', actualizarInsumo);
 router.get('/:id/verificar-integridad', verificarIntegridadInsumo);
 router.delete('/:id', eliminarInsumo);
+router.patch('/:id/estado', cambiarEstadoInsumo);
 
 module.exports = router;

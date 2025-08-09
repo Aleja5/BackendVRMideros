@@ -3,9 +3,12 @@ const { verificarIntegridadReferencial, obtenerRegistrosAfectados } = require('.
 
 // Obtener todos los procesos
 const obtenerProcesos = async (req, res) => {
-    const { page = 1, limit = 100, nombre, search, areaId } = req.query; // Added areaId
+    const { page = 1, limit = 100, nombre, search, areaId, estado = 'activo' } = req.query; // Added areaId
     const query = {};
 
+    if (estado !== 'todos') {
+        query.estado = estado;
+    }
     if (nombre && search) {
         query.$or = [
             { nombre: { $regex: nombre, $options: 'i' } },
@@ -91,7 +94,7 @@ const actualizarProceso = async (req, res) => {
         const proceso = await Proceso.findByIdAndUpdate(
             req.params.id, 
             req.body, 
-            { new: true }
+            { new: true, runValidators: true }
         ).populate('areas'); // Popular las áreas en la respuesta
         
         if (!proceso) {
@@ -185,6 +188,38 @@ const verificarIntegridadProceso = async (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
+    // Cambiar estado de un proceso (activo/inactivo)
+const cambiarEstadoProceso = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { estado } = req.body;
+
+        // Validar que el estado sea válido
+        if (!['activo', 'inactivo'].includes(estado)) {
+            return res.status(400).json({ 
+                message: 'Estado inválido. Debe ser "activo" o "inactivo"' 
+            });
+        }
+
+        const procesoActualizado = await Proceso.findByIdAndUpdate(
+            id,
+            { estado },
+            { new: true, runValidators: true }
+        ).populate('areas'); // Popular las áreas para mostrar la información completa
+
+        if (!procesoActualizado) {
+            return res.status(404).json({ message: 'Proceso no encontrado' });
+        }
+
+        res.json({
+            message: `Proceso marcado como ${estado} exitosamente`,
+            proceso: procesoActualizado
+        });
+    } catch (error) {
+        console.error('Error al cambiar estado del proceso:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
 
 // Exportar las funciones
 module.exports = {
@@ -193,6 +228,7 @@ module.exports = {
     crearProceso,
     actualizarProceso,
     eliminarProceso,
-    verificarIntegridadProceso
+    verificarIntegridadProceso,
+    cambiarEstadoProceso
 };
 

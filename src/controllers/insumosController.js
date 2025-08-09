@@ -3,8 +3,12 @@ const { verificarIntegridadReferencial, obtenerRegistrosAfectados } = require('.
 
 // Obtener todos los insumos
 const obtenerInsumos = async (req, res) => {
-    const { page = 1, limit = 10, nombre, search } = req.query;
+    const { page = 1, limit = 10, nombre, search, estado= 'activo' } = req.query;
     const query = {};
+
+    if (estado !== 'todos') {
+        query.estado = estado;
+    }
 
     if (nombre && search) {
         query.$or = [
@@ -63,7 +67,9 @@ const crearInsumo = async (req, res) => {
 // Actualizar un insumo
 const actualizarInsumo = async (req, res) => {
     try {
-        const insumo = await Insumos.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const insumo = await Insumos.findByIdAndUpdate(
+            req.params.id, 
+            req.body, { new: true, runValidators: true });
         if (!insumo) {
             return res.status(404).json({ message: 'Insumo no encontrado' });
         }
@@ -156,11 +162,46 @@ const verificarIntegridadInsumo = async (req, res) => {
     }
 };
 
+// Cambiar estado de un insumo (activo/inactivo)
+const cambiarEstadoInsumo = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { estado } = req.body;
+
+        // Validar que el estado sea válido
+        if (!['activo', 'inactivo'].includes(estado)) {
+            return res.status(400).json({ 
+                message: 'Estado inválido. Debe ser "activo" o "inactivo"' 
+            });
+        }
+
+        const insumoActualizado = await Insumos.findByIdAndUpdate(
+            id,
+            { estado },
+            { new: true, runValidators: true }
+        );
+
+        if (!insumoActualizado) {
+            return res.status(404).json({ message: 'Insumo no encontrado' });
+        }
+
+        res.json({
+            message: `Insumo marcado como ${estado} exitosamente`,
+            insumo: insumoActualizado
+        });
+    } catch (error) {
+        console.error('Error al cambiar estado del insumo:', error);
+        res.status(500).json({ message: error.message });
+    }
+
+};
+
 module.exports = {
     obtenerInsumos,
     obtenerInsumo,
     crearInsumo,
     actualizarInsumo,
     eliminarInsumo,
-    verificarIntegridadInsumo
+    verificarIntegridadInsumo,
+    cambiarEstadoInsumo
 };

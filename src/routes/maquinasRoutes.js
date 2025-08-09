@@ -6,7 +6,8 @@ const {
     crearMaquina,
     actualizarMaquina,
     eliminarMaquina,
-    verificarIntegridadMaquina
+    verificarIntegridadMaquina, 
+    cambiarEstadoMaquina
 } = require('../controllers/maquinasController');
 
 router.get('/', obtenerMaquinas);
@@ -15,5 +16,6 @@ router.post('/', crearMaquina);
 router.put('/:id', actualizarMaquina);
 router.get('/:id/verificar-integridad', verificarIntegridadMaquina);
 router.delete('/:id', eliminarMaquina);
+router.patch('/:id/estado', cambiarEstadoMaquina);
 
 module.exports = router;

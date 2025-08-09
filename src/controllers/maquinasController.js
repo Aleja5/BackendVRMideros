@@ -1,19 +1,23 @@
-const Maquina = require('../models/Maquina'); 
+const Maquina = require('../models/Maquina');
 const { verificarIntegridadReferencial, obtenerRegistrosAfectados } = require('../utils/integridadReferencial');
 
 // Obtener todas las máquinas
 const obtenerMaquinas = async (req, res) => {
-    const { page =1, limit = 10, nombre, search } = req.query;
+    const { page = 1, limit = 10, nombre, search, estado = 'activo' } = req.query;
     const query = {};
+
+    if (estado !== 'todos') {
+        query.estado = estado;
+    }
 
     if (nombre && search) {
         query.$or = [
             { nombre: { $regex: nombre, $options: 'i' } },
             { nombre: { $regex: search, $options: 'i' } }
         ];
-    }else if (nombre) {
+    } else if (nombre) {
         query.nombre = { $regex: nombre, $options: 'i' };
-    }else if (search) {
+    } else if (search) {
         query.nombre = { $regex: search, $options: 'i' };
     }
 
@@ -25,11 +29,11 @@ const obtenerMaquinas = async (req, res) => {
             .limit(Number(limit));
 
         res.json({
-             maquinas,
-             totalPages: Math.ceil(totalResults / limit),
-             currentPage: Number(page),
-             totalResults: totalResults,
-    });
+            maquinas,
+            totalPages: Math.ceil(totalResults / limit),
+            currentPage: Number(page),
+            totalResults: totalResults,
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -53,7 +57,7 @@ const crearMaquina = async (req, res) => {
     const { nombre } = req.body;
     const nuevaMaquina = new Maquina({ nombre });
     try {
-        const maquinaGuardada = await nuevaMaquina.save();        
+        const maquinaGuardada = await nuevaMaquina.save();
         res.status(201).json(maquinaGuardada);
     } catch (error) {
         console.error('Error al guardar máquina:', error);
@@ -64,7 +68,9 @@ const crearMaquina = async (req, res) => {
 // Actualizar una máquina
 const actualizarMaquina = async (req, res) => {
     try {
-        const maquina = await Maquina.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const maquina = await Maquina.findByIdAndUpdate(
+            req.params.id,
+            req.body, { new: true, runValidators: true });
         if (!maquina) {
             return res.status(404).json({ message: 'Máquina no encontrada' });
         }
@@ -78,7 +84,7 @@ const actualizarMaquina = async (req, res) => {
 const eliminarMaquina = async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         // Verificar si la máquina existe
         const maquina = await Maquina.findById(id);
         if (!maquina) {
@@ -87,10 +93,10 @@ const eliminarMaquina = async (req, res) => {
 
         // Verificar si la máquina tiene registros de producción asociados
         const Produccion = require('../models/Produccion');
-        const registrosProduccion = await Produccion.countDocuments({ maquina: { $in: [id]} });
-        
+        const registrosProduccion = await Produccion.countDocuments({ maquina: { $in: [id] } });
+
         if (registrosProduccion > 0) {
-            return res.status(409).json({ 
+            return res.status(409).json({
                 message: 'No se puede eliminar la máquina porque tiene registros de producción asociados',
                 conflicto: 'integridad_referencial',
                 detalles: {
@@ -104,7 +110,7 @@ const eliminarMaquina = async (req, res) => {
 
         // Si no hay registros asociados, proceder con la eliminación
         const maquinaEliminada = await Maquina.findByIdAndDelete(id);
-        res.json({ 
+        res.json({
             message: 'Máquina eliminada exitosamente',
             maquina: maquinaEliminada
         });
@@ -118,7 +124,7 @@ const eliminarMaquina = async (req, res) => {
 const verificarIntegridadMaquina = async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         // Verificar si la máquina existe
         const maquina = await Maquina.findById(id);
         if (!maquina) {
@@ -127,11 +133,11 @@ const verificarIntegridadMaquina = async (req, res) => {
 
         // Verificar integridad referencial
         const verificacion = await verificarIntegridadReferencial(id, 'maquina', maquina.nombre);
-        
+
         if (!verificacion.puedeEliminar) {
             // Obtener algunos registros afectados para mostrar detalles
             const registrosAfectados = await obtenerRegistrosAfectados(id, 'maquina', 5);
-            
+
             return res.status(200).json({
                 puedeEliminar: false,
                 mensaje: verificacion.mensaje,
@@ -156,11 +162,44 @@ const verificarIntegridadMaquina = async (req, res) => {
     }
 };
 
+// Cambiar estado de una máquina (activo/inactivo)
+const cambiarEstadoMaquina = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { estado } = req.body;
+
+        // Validar que el estado sea válido
+        if (!['activo', 'inactivo'].includes(estado)) {
+            return res.status(400).json({ 
+                message: 'Estado inválido. Debe ser "activo" o "inactivo"' 
+            });
+        }
+
+        const maquinaActualizada = await Maquina.findByIdAndUpdate(
+            id,
+            { estado },
+            { new: true, runValidators: true }
+        );
+
+        if (!maquinaActualizada) {
+            return res.status(404).json({ message: 'Máquina no encontrada' });
+        }
+
+        res.json({
+            message: `Máquina marcada como ${estado} exitosamente`,
+            maquina: maquinaActualizada
+        });
+    } catch (error) {
+        console.error('Error al cambiar estado de la máquina:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
 module.exports = {
     obtenerMaquinas,
     obtenerMaquina,
     crearMaquina,
     actualizarMaquina,
     eliminarMaquina,
-    verificarIntegridadMaquina
+    verificarIntegridadMaquina,
+    cambiarEstadoMaquina
 };

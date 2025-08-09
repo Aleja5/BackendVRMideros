@@ -6,7 +6,8 @@ const {
     crearProceso,
     actualizarProceso,
     eliminarProceso,
-    verificarIntegridadProceso
+    verificarIntegridadProceso,
+    cambiarEstadoProceso
 } = require('../controllers/procesosController');
 
 router.get('/', obtenerProcesos);
@@ -15,6 +16,7 @@ router.post('/', crearProceso);
 router.put('/:id', actualizarProceso);
 router.get('/:id/verificar-integridad', verificarIntegridadProceso);
 router.delete('/:id', eliminarProceso);
+router.patch('/:id/estado', cambiarEstadoProceso);
 
 module.exports = router;
 
