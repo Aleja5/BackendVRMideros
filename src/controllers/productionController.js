@@ -168,7 +168,7 @@ exports.getAllProduccion = async (req, res) => {
 // 📌 Registrar Producción
 exports.registrarProduccion = async (req, res) => {
     try {
-        const { operario, fecha, oti, procesos, areaProduccion, maquina, insumos, tipoTiempo, horaInicio, horaFin, tiempo, observaciones } = req.body;
+        const { operario, fecha, oti, procesos, areaProduccion, maquina, insumos, tipoTiempo, tipoPermiso, horaInicio, horaFin, tiempo, observaciones } = req.body;
 
         // Log de datos recibidos
         logger.info('Datos recibidos en registrarProduccion:', req.body);
@@ -193,6 +193,9 @@ exports.registrarProduccion = async (req, res) => {
         }
         // Similar a procesos, puedes añadir validación de insumos.length === 0 si es necesario.
         if (!tipoTiempo) validationErrors.push('tipoTiempo');
+        if (tipoTiempo === 'Permiso Laboral' && !tipoPermiso) {
+            validationErrors.push('tipoPermiso (requerido cuando tipoTiempo es Permiso Laboral)');
+        }
         if (!horaInicio) validationErrors.push('horaInicio');
         if (!horaFin) validationErrors.push('horaFin');
         if (typeof tiempo !== 'number') { // Permite que tiempo sea 0
@@ -245,6 +248,7 @@ exports.registrarProduccion = async (req, res) => {
             insumos,
             jornada: jornada._id,
             tipoTiempo,
+            tipoPermiso: tipoPermiso || null,
             horaInicio,
             horaFin,
             tiempo,
@@ -335,7 +339,7 @@ exports.listarProduccion = async (req, res) => {
 
 exports.actualizarProduccion = async (req, res) => {
     try {
-        const { _id, operario, oti, procesos, areaProduccion, maquina, insumos, fecha, tiempo, horaInicio, horaFin, tipoTiempo, observaciones } = req.body;
+        const { _id, operario, oti, procesos, areaProduccion, maquina, insumos, fecha, tiempo, horaInicio, horaFin, tipoTiempo, tipoPermiso, observaciones } = req.body;
 
         // Validar que el ID de la producción esté presente
         // Validaciones básicas
@@ -395,6 +399,7 @@ exports.actualizarProduccion = async (req, res) => {
                 horaInicio,
                 horaFin,
                 tipoTiempo,
+                tipoPermiso: tipoPermiso || null,
                 observaciones: observaciones || null
             },
             { new: true, runValidators: true }

@@ -624,6 +624,7 @@ exports.guardarJornadaCompleta = async (req, res) => {
                     maquina: actividad.maquina || [],
                     insumos: actividad.insumos || [], // Array de ObjectIds
                     tipoTiempo: actividad.tipoTiempo,
+                    tipoPermiso: actividad.tipoPermiso || null,
                     horaInicio: actividad.horaInicio, // Se espera que sea una fecha ISO completa
                     horaFin: actividad.horaFin,       // Se espera que sea una fecha ISO completa
                     tiempo: tiempoCalculado,    // Usar tiempo calculado

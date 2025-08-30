@@ -11,7 +11,20 @@ const produccionSchema = new mongoose.Schema({
     insumos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Insumo', required: true }],
     jornada: {type:mongoose.Schema.Types.ObjectId, ref: 'JornadaProduccion', required: true},
 
-    tipoTiempo: { type: String, enum: ['Preparación', 'Operación', 'Alimentación', 'Capacitación'], required: true },
+    tipoTiempo: { type: String, enum: ['Preparación', 'Operación', 'Alimentación', 'Capacitación','Permiso Laboral'], required: true },
+    tipoPermiso: { 
+        type: String, 
+        enum: ['permiso de salud', 'permiso personal', 'licencia no remunerada', 'licencia remunerada', 'banco de tiempo'],
+        validate: {
+            validator: function(value) {
+                if (this.tipoTiempo === 'Permiso Laboral') {
+                    return value && value.trim().length > 0;
+                }
+                return true; // No es requerido si no es "Permiso Laboral"
+            },
+            message: 'tipoPermiso es requerido cuando tipoTiempo es "Permiso Laboral"'
+        }
+    },
     horaInicio: { type: Date, required: true },
     horaFin: { type: Date, required: true },
     tiempo: {type: Number, required: true},

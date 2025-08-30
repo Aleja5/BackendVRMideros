@@ -3,7 +3,7 @@ require('dotenv').config();
 
 // Solo mostrar información de conexión en desarrollo
 if (process.env.NODE_ENV !== 'production') {
-    console.log("🔍 Conectando a MongoDB...");
+    //console.log("🔍 Conectando a MongoDB...");
 }
 
 const connectDB = async () => {
