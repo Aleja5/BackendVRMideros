@@ -19,4 +19,7 @@ router.delete('/:id', jornadaController.eliminarJornada);
 // Ruta para recalcular tiempos efectivos (Admin only)
 router.post('/recalcular-tiempos', jornadaController.recalcularTiemposEfectivos);
 
+// Ruta para obtener reporte de jornadas y permisos laborales
+router.get('/reporte-permisos', jornadaController.obtenerReporteJornadasPermisos);
+
 module.exports = router;

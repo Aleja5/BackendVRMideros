@@ -171,9 +171,70 @@ exports.obtenerJornadas = async (req, res) => {
             });
 
         const jornadasConTiempo = jornadas.map(jornada => {
+            // Calcular tiempo efectivo a pagar (descontando permisos no remunerados)
+            let tiempoEfectivoAPagar = { horas: 0, minutos: 0 };     
+            
+            // Método 1: Usar horaInicio y horaFin de la jornada si existen
+            if (jornada.horaInicio && jornada.horaFin) {
+                const inicio = new Date(jornada.horaInicio);
+                let fin = new Date(jornada.horaFin);
+                
+                if (fin <= inicio) {
+                    fin = new Date(fin.getTime() + 24 * 60 * 60 * 1000);
+                }
+                
+                let tiempoTotalJornadaMinutos = Math.round((fin - inicio) / (1000 * 60));
+                
+                // Calcular minutos de permisos no remunerados
+                const minutosPermisosNoRemunerados = jornada.registros
+                    .filter(registro => registro.tipoPermiso === 'permiso NO remunerado')
+                    .reduce((total, registro) => total + (registro.tiempo || 0), 0);
+                
+                // Tiempo efectivo = Tiempo total - Permisos no remunerados
+                const tiempoEfectivoMinutos = tiempoTotalJornadaMinutos - minutosPermisosNoRemunerados;
+                
+                if (tiempoEfectivoMinutos > 0) {
+                    tiempoEfectivoAPagar = {
+                        horas: Math.floor(tiempoEfectivoMinutos / 60),
+                        minutos: tiempoEfectivoMinutos % 60
+                    };
+                }
+            }
+            // Método 2: Si no hay horas de jornada, usar la suma de actividades menos permisos no remunerados
+            else if (jornada.registros && jornada.registros.length > 0) {
+                // Calcular tiempo total de todas las actividades
+                const tiempoTotalActividades = jornada.registros.reduce((total, registro) => {
+                    return total + (registro.tiempo || 0);
+                }, 0);
+                
+                // Calcular minutos de permisos no remunerados
+                const minutosPermisosNoRemunerados = jornada.registros
+                    .filter(registro => registro.tipoPermiso === 'permiso NO remunerado')
+                    .reduce((total, registro) => total + (registro.tiempo || 0), 0);
+                
+                // Tiempo efectivo = Total actividades - Permisos no remunerados
+                const tiempoEfectivoMinutos = tiempoTotalActividades - minutosPermisosNoRemunerados;
+                
+                if (tiempoEfectivoMinutos > 0) {
+                    tiempoEfectivoAPagar = {
+                        horas: Math.floor(tiempoEfectivoMinutos / 60),
+                        minutos: tiempoEfectivoMinutos % 60
+                    };
+                }
+            }
+            // Método 3: Como fallback, usar totalTiempoActividades si existe
+            else if (jornada.totalTiempoActividades && 
+                     (jornada.totalTiempoActividades.horas > 0 || jornada.totalTiempoActividades.minutos > 0)) {
+                tiempoEfectivoAPagar = {
+                    horas: jornada.totalTiempoActividades.horas || 0,
+                    minutos: jornada.totalTiempoActividades.minutos || 0
+                };
+            }            
+                   
             return {
                 ...jornada.toObject(),
-                totalTiempoActividades: jornada.totalTiempoActividades || { horas: 0, minutos: 0 }
+                totalTiempoActividades: jornada.totalTiempoActividades || { horas: 0, minutos: 0 },
+                tiempoEfectivoAPagar // ✅ Campo calculado con múltiples métodos
             };
         });
 
@@ -750,6 +811,109 @@ exports.recalcularTiemposEfectivos = async (req, res) => {
         res.status(500).json({
             error: 'Error interno del servidor durante el recálculo',
             details: error.message
+        });
+    }
+};
+
+// @desc    Obtener reporte de jornadas y permisos laborales para Excel
+// @route   GET /api/jornadas/reporte-permisos
+// @access  Admin only
+exports.obtenerReporteJornadasPermisos = async (req, res) => {
+    try {
+        const { fechaInicio, fechaFin, operarioId } = req.query;
+
+        // Construir filtro base
+        let filtro = {};
+        
+        // Filtro por operario si se especifica
+        if (operarioId && mongoose.Types.ObjectId.isValid(operarioId)) {
+            filtro.operario = operarioId;
+        }
+        
+        // Filtro por rango de fechas si se especifica
+        if (fechaInicio || fechaFin) {
+            filtro.fecha = {};
+            if (fechaInicio) {
+                const fechaInicioDate = new Date(fechaInicio);
+                fechaInicioDate.setHours(0, 0, 0, 0);
+                filtro.fecha.$gte = fechaInicioDate;
+            }
+            if (fechaFin) {
+                const fechaFinDate = new Date(fechaFin);
+                fechaFinDate.setHours(23, 59, 59, 999);
+                filtro.fecha.$lte = fechaFinDate;
+            }
+        }
+
+        const jornadas = await Jornada.find(filtro)
+            .populate('operario', 'name cedula')
+            .populate({
+                path: 'registros',
+                populate: [
+                    { path: 'operario', select: 'name' },
+                    { path: 'oti', select: 'numeroOti' },
+                    { path: 'procesos', model: 'Proceso', select: 'nombre' },
+                    { path: 'areaProduccion', select: 'nombre' },
+                    { path: 'maquina', model: 'Maquina', select: 'nombre' },
+                    { path: 'insumos', model: 'Insumo', select: 'nombre' }
+                ]
+            })
+            .sort({ fecha: -1 });
+
+        // Filtrar solo jornadas que tienen actividades
+        const jornadasConActividades = jornadas.filter(j => j.registros && j.registros.length > 0);
+
+        // Procesar cada jornada para extraer información de permisos
+        const reporteDetallado = jornadasConActividades.map(jornada => {
+            const permisos = jornada.registros.filter(registro => 
+                registro.tipoTiempo === 'Permiso Laboral'
+            );
+
+            // Calcular tiempo total de jornada en minutos
+            let tiempoTotalJornadaMinutos = 0;
+            if (jornada.horaInicio && jornada.horaFin) {
+                const inicio = new Date(jornada.horaInicio);
+                let fin = new Date(jornada.horaFin);
+                
+                if (fin <= inicio) {
+                    fin = new Date(fin.getTime() + 24 * 60 * 60 * 1000);
+                }
+                
+                tiempoTotalJornadaMinutos = Math.round((fin - inicio) / (1000 * 60));
+            }
+
+            return {
+                _id: jornada._id,
+                fecha: jornada.fecha,
+                operario: jornada.operario,
+                horaInicio: jornada.horaInicio,
+                horaFin: jornada.horaFin,
+                tiempoTotalJornadaMinutos,
+                totalActividades: jornada.registros.length,
+                permisos: permisos.map(permiso => ({
+                    id: permiso._id,
+                    horaInicio: permiso.horaInicio,
+                    horaFin: permiso.horaFin,
+                    tipoPermiso: permiso.tipoPermiso,
+                    tiempoMinutos: permiso.tiempo,
+                    observaciones: permiso.observaciones
+                })),
+                totalTiempoActividades: jornada.totalTiempoActividades
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            total: reporteDetallado.length,
+            data: reporteDetallado
+        });
+
+    } catch (error) {
+        console.error('❌ Error al generar reporte de jornadas y permisos:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al generar el reporte',
+            error: error.message
         });
     }
 };

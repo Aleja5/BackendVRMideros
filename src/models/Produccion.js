@@ -11,10 +11,11 @@ const produccionSchema = new mongoose.Schema({
     insumos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Insumo', required: true }],
     jornada: {type:mongoose.Schema.Types.ObjectId, ref: 'JornadaProduccion', required: true},
 
-    tipoTiempo: { type: String, enum: ['Preparación', 'Operación', 'Alimentación', 'Capacitación','Permiso Laboral'], required: true },
+    tipoTiempo: { type: String, enum: ['Preparación', 'Operación', 'Alimentación', 'Capacitación','Permiso Laboral', 'Horario Laboral'], 
+        required: true },
     tipoPermiso: { 
         type: String, 
-        enum: ['permiso de salud', 'permiso personal', 'licencia no remunerada', 'licencia remunerada', 'banco de tiempo'],
+        enum: ['permiso remunerado', 'permiso NO remunerado'],
         validate: {
             validator: function(value) {
                 if (this.tipoTiempo === 'Permiso Laboral') {
@@ -31,6 +32,33 @@ const produccionSchema = new mongoose.Schema({
 
     observaciones: String,
 }, { timestamps: true });
+
+// Middleware para validar un solo horario laboral por operario por día
+produccionSchema.pre('save', async function(next) {
+    if (this.tipoTiempo === 'Horario Laboral') {
+        const fechaInicio = new Date(this.fecha);
+        fechaInicio.setHours(0, 0, 0, 0);
+        const fechaFin = new Date(this.fecha);
+        fechaFin.setHours(23, 59, 59, 999);
+
+        const existingHorario = await this.constructor.findOne({
+            operario: this.operario,
+            tipoTiempo: 'Horario Laboral',
+            fecha: {
+                $gte: fechaInicio,
+                $lte: fechaFin
+            },
+            _id: { $ne: this._id } // Excluir el documento actual en caso de actualización
+        });
+
+        if (existingHorario) {
+            const error = new Error('Ya existe un registro de Horario Laboral para este operario en esta fecha');
+            error.code = 'HORARIO_DUPLICADO';
+            return next(error);
+        }
+    }
+    next();
+});
 
 module.exports = mongoose.model('Produccion', produccionSchema,"registroProduccion");
 
