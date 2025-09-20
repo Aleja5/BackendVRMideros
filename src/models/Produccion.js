@@ -33,28 +33,90 @@ const produccionSchema = new mongoose.Schema({
     observaciones: String,
 }, { timestamps: true });
 
-// Middleware para validar un solo horario laboral por operario por día
+// Middleware para validar un solo proceso "Horario Laboral" por operario por día
 produccionSchema.pre('save', async function(next) {
-    if (this.tipoTiempo === 'Horario Laboral') {
-        const fechaInicio = new Date(this.fecha);
-        fechaInicio.setHours(0, 0, 0, 0);
-        const fechaFin = new Date(this.fecha);
-        fechaFin.setHours(23, 59, 59, 999);
+    // Solo validar si existen procesos
+    if (this.procesos && this.procesos.length > 0) {
+        try {
+            // Obtener referencia al modelo Proceso de forma segura
+            const mongoose = require('mongoose');
+            
+            // Verificar si el modelo ya existe antes de intentar usarlo
+            let Proceso;
+            try {
+                Proceso = mongoose.models.Proceso || mongoose.model('Proceso');
+            } catch (modelError) {
+                console.log('⚠️ No se pudo acceder al modelo Proceso, saltando validación');
+                return next();
+            }
+            
+            // Buscar si alguno de los procesos es exactamente "Horario Laboral"
+            const procesosHorarioLaboral = await Proceso.find({
+                _id: { $in: this.procesos },
+                nombre: "Horario Laboral" // Búsqueda exacta, case-sensitive
+            });
 
-        const existingHorario = await this.constructor.findOne({
-            operario: this.operario,
-            tipoTiempo: 'Horario Laboral',
-            fecha: {
-                $gte: fechaInicio,
-                $lte: fechaFin
-            },
-            _id: { $ne: this._id } // Excluir el documento actual en caso de actualización
-        });
+            // Obtener todos los procesos para logging detallado
+            const todosLosProcesos = await Proceso.find({
+                _id: { $in: this.procesos }
+            });
 
-        if (existingHorario) {
-            const error = new Error('Ya existe un registro de Horario Laboral para este operario en esta fecha');
-            error.code = 'HORARIO_DUPLICADO';
-            return next(error);
+            console.log(`🔍 Verificando procesos para horario laboral:`, {
+                procesosIds: this.procesos,
+                todosLosProcesosNombres: todosLosProcesos.map(p => ({ id: p._id, nombre: p.nombre })),
+                procesosHorarioEncontrados: procesosHorarioLaboral.length,
+                nombresHorarioEncontrados: procesosHorarioLaboral.map(p => p.nombre)
+            });
+
+            if (procesosHorarioLaboral.length > 0) {
+                const fechaInicio = new Date(this.fecha);
+                fechaInicio.setHours(0, 0, 0, 0);
+                const fechaFin = new Date(this.fecha);
+                fechaFin.setHours(23, 59, 59, 999);
+
+                // Buscar registros existentes con proceso "Horario Laboral" en la misma fecha
+                const queryBusqueda = {
+                    operario: this.operario,
+                    procesos: { $in: procesosHorarioLaboral.map(p => p._id) },
+                    fecha: {
+                        $gte: fechaInicio,
+                        $lte: fechaFin
+                    },
+                    _id: { $ne: this._id } // Excluir el documento actual en caso de actualización
+                };
+
+                console.log(`🔍 Query de búsqueda:`, queryBusqueda);
+
+                const existingHorario = await this.constructor.findOne(queryBusqueda);
+
+                // Si se encuentra un registro, obtener más detalles
+                if (existingHorario) {
+                    const registroDetalle = await this.constructor.findById(existingHorario._id).populate('procesos');
+                    console.log(`❗ Registro conflictivo encontrado:`, {
+                        id: registroDetalle._id,
+                        fecha: registroDetalle.fecha,
+                        procesosNombres: registroDetalle.procesos?.map(p => p.nombre) || [],
+                        tipoTiempo: registroDetalle.tipoTiempo
+                    });
+                }
+
+                console.log(`🔍 Resultado de búsqueda:`, {
+                    existeHorario: !!existingHorario,
+                    operario: this.operario,
+                    fecha: this.fecha,
+                    fechaBusqueda: { desde: fechaInicio, hasta: fechaFin },
+                    procesosHorarioBuscados: procesosHorarioLaboral.map(p => ({ id: p._id, nombre: p.nombre }))
+                });
+
+                if (existingHorario) {
+                    const error = new Error('Ya existe un registro con el proceso "Horario Laboral" para este operario en esta fecha');
+                    error.code = 'HORARIO_DUPLICADO';
+                    return next(error);
+                }
+            }
+        } catch (err) {
+            console.error('❌ Error en validación de horario laboral:', err);
+            return next(err);
         }
     }
     next();

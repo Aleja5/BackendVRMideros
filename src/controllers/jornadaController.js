@@ -729,11 +729,34 @@ exports.guardarJornadaCompleta = async (req, res) => {
 
     } catch (error) {
         console.error('❌ Error al guardar la jornada completa:', error);
+        
+        // Manejo específico para errores de horario duplicado
+        if (error.code === 'HORARIO_DUPLICADO') {
+            console.error('❌ Error de horario laboral duplicado:', error.message);
+            return res.status(400).json({ 
+                msg: error.message,
+                error: error.message,
+                code: 'HORARIO_DUPLICADO'
+            });
+        }
+        
         if (error.name === 'ValidationError') {
             console.error('❌ Error de validación:', error.errors);
             return res.status(400).json({ msg: error.message, errors: error.errors });
         }
-        res.status(500).json({ error: 'Hubo un error al guardar la jornada completa' });
+        
+        // Log del error completo para debugging
+        console.error('❌ Error completo:', {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
+        
+        res.status(500).json({ 
+            error: 'Hubo un error al guardar la jornada completa',
+            details: error.message 
+        });
     }
 };
 
